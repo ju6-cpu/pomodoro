@@ -876,7 +876,7 @@
         longBreak: 15
       },
       timer: {
-        mode: 'focus', // 'focus' | 'shortBreak' | 'longBreak'
+        mode: 'focus',
         isRunning: false,
         startTimestamp: null,
         accumulatedSeconds: 0,
@@ -1396,7 +1396,7 @@
 
       const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
       document.getElementById('activeTaskBanner').textContent = activeTask 
-        ? `${activeTask.title}하는 중` 
+        ? `[${activeTask.title}] 하는 중` 
         : '집중 중';
     }
 
