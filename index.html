@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pomodoro 집중 타이머</title>
-  <!-- Perfect Centered Tomato Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='55' font-size='75' text-anchor='middle' dominant-baseline='central'>🍅</text></svg>">
   <style>
     :root {
@@ -760,7 +759,7 @@
       </div>
 
       <div class="active-task-banner" id="activeTaskBanner">
-        선택된 과목 없음
+        진행 중인 과목: 없음
       </div>
     </div>
 
@@ -1043,7 +1042,7 @@
     }
 
     /* ==========================================================
-       5. TIMER ENGINE & COLOR TRANSITIONS
+       5. TIMER ENGINE & 50+ MIN OVERTIME 2-POMO RULE
     ========================================================== */
     function getTargetSeconds() {
       if (state.timer.mode === 'focus') return state.settings.focusTime * 60;
@@ -1158,12 +1157,13 @@
     }
 
     /* ==========================================================
-       6. SESSION COMMITTING & ACCURATE SET INDEXING
+       6. SESSION COMMITTING & 50+ MIN (2-POMO) RULE
     ========================================================== */
     function handleNextAction(autoStart = false) {
       initAudioContext();
       const elapsed = getCurrentElapsedSeconds();
-      const focusTargetSec = state.settings.focusTime * 60;
+      const focusTargetSec = state.settings.focusTime * 60; // 25분 = 1500초
+      const doubleFocusSec = focusTargetSec * 2;             // 50분 = 3000초
 
       if (state.timer.isRunning) {
         pauseTimer();
@@ -1171,15 +1171,31 @@
 
       if (state.timer.mode === 'focus') {
         const targetDate = state.timer.sessionTargetDate || getStudyDate();
-        if (elapsed > 0) {
-          commitFocusSession(elapsed, focusTargetSec);
+        let addedPomos = 1;
+
+        if (elapsed >= doubleFocusSec) {
+          // 50분(2타임)을 넘겼으면 2뽀모로 일괄 취급
+          addedPomos = 2;
         }
 
+        if (elapsed > 0) {
+          commitFocusSession(elapsed, focusTargetSec, addedPomos);
+        }
+
+        // 휴식 시간 동적 부여 규칙 (50분 이상이면 휴식도 2배로 부여, 4회 누적 시 긴 휴식)
         const currentPomos = state.records[targetDate]?.pomodoros || 0;
         const isCycleComplete = currentPomos > 0 && currentPomos % 4 === 0;
-        const nextMode = isCycleComplete ? 'longBreak' : 'shortBreak';
+        let nextMode = isCycleComplete ? 'longBreak' : 'shortBreak';
 
         switchMode(nextMode);
+
+        // 만약 50분을 넘겨서 2뽀모가 한번에 올라간 경우, 다음 쉬는 시간 길이를 2배로 늘려줌 (설정값 * 2)
+        if (addedPomos === 2) {
+          if (nextMode === 'shortBreak') {
+            // 기본 짧은 휴식 5분 -> 10분으로 일시 조정 (다음 타이머 타겟 계산용)
+            // 이를 위해 임시로 settings를 건드리지 않고 아래에서 모드 전환 시 커스텀 적용
+          }
+        }
       } else {
         switchMode('focus');
       }
@@ -1198,24 +1214,38 @@
       }
     }
 
-    function commitFocusSession(actualSeconds, targetSeconds) {
+    // 50분 넘었을 때 휴식 시간을 유동적으로 계산하기 위해 getTargetSeconds 오버라이드 대응
+    function getTargetSeconds() {
+      if (state.timer.mode === 'focus') return state.settings.focusTime * 60;
+      
+      const targetDate = getActiveSessionDate();
+      const record = state.records[targetDate];
+      const lastAddedPomos = record?.lastAddedPomos || 1;
+
+      if (state.timer.mode === 'shortBreak') {
+        // 직전 집중이 50분을 넘겨 2뽀모였다면 휴식도 2배(10분)
+        return state.settings.shortBreak * 60 * (lastAddedPomos >= 2 ? 2 : 1);
+      }
+      
+      // 긴 휴식
+      return state.settings.longBreak * 60;
+    }
+
+    function commitFocusSession(actualSeconds, targetSeconds, pomoCount) {
       const targetDate = state.timer.sessionTargetDate || getStudyDate();
       if (!state.records[targetDate]) {
-        state.records[targetDate] = { totalSeconds: 0, pomodoros: 0, sessions: 0 };
+        state.records[targetDate] = { totalSeconds: 0, pomodoros: 0, sessions: 0, lastAddedPomos: 1 };
       }
-
-      const isCompletedPomo = actualSeconds >= targetSeconds;
 
       state.records[targetDate].totalSeconds += actualSeconds;
       state.records[targetDate].sessions += 1;
-      if (isCompletedPomo) {
-        state.records[targetDate].pomodoros += 1;
-      }
+      state.records[targetDate].pomodoros += pomoCount;
+      state.records[targetDate].lastAddedPomos = pomoCount; // 직전 부여된 뽀모 개수 백업 (휴식 시간 산정용)
 
-      if (state.activeTaskId && isCompletedPomo) {
+      if (state.activeTaskId) {
         const task = state.tasks.find(t => t.id === state.activeTaskId);
         if (task) {
-          task.completedPomodoros = (task.completedPomodoros || 0) + 1;
+          task.completedPomodoros = (task.completedPomodoros || 0) + pomoCount;
         }
       }
     }
@@ -1371,8 +1401,8 @@
 
       const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
       document.getElementById('activeTaskBanner').textContent = activeTask 
-        ? `${activeTask.title} 하는 중` 
-        : '선택된 과목 없음';
+        ? `진행 중인 과목: ${activeTask.title}` 
+        : '진행 중인 과목: 없음';
     }
 
     /* ==========================================================
