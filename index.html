@@ -125,32 +125,14 @@
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
     }
 
-    .mode-tabs {
-      display: flex;
-      gap: 6px;
-      background: rgba(0, 0, 0, 0.12);
-      padding: 4px;
-      border-radius: 10px;
-      margin-bottom: 16px;
-    }
-
-    .tab-btn {
-      background: none;
-      border: none;
-      color: var(--text-white);
-      font-size: 0.95rem;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 7px;
-      cursor: pointer;
-      opacity: 0.75;
-      transition: all 0.2s;
-    }
-
-    .tab-btn.active {
-      background: rgba(0, 0, 0, 0.22);
-      opacity: 1;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    .mode-indicator {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 6px 18px;
+      border-radius: 20px;
+      letter-spacing: -0.3px;
     }
 
     .target-badge {
@@ -203,8 +185,8 @@
       color: var(--current-bg);
       border: none;
       border-radius: 8px;
-      padding: 12px 46px;
-      font-size: 1.35rem;
+      padding: 12px 38px;
+      font-size: 1.25rem;
       font-weight: 800;
       cursor: pointer;
       box-shadow: 0 5px 0 rgba(0, 0, 0, 0.14);
@@ -221,11 +203,14 @@
       color: var(--text-white);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 8px;
-      padding: 13px 24px;
-      font-size: 1rem;
-      font-weight: 600;
+      padding: 11px 18px;
+      font-size: 1.1rem;
+      font-weight: 700;
       cursor: pointer;
       transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .btn-secondary:hover {
@@ -239,6 +224,7 @@
       font-size: 0.95rem;
       opacity: 0.95;
       font-weight: 500;
+      min-height: 24px;
     }
 
     .tasks-section {
@@ -743,24 +729,18 @@
 
     <!-- Main Timer Card -->
     <div class="timer-card">
-      <div class="mode-tabs">
-        <button class="tab-btn active" id="tabFocus" onclick="switchMode('focus')">집중</button>
-        <button class="tab-btn" id="tabShort" onclick="switchMode('shortBreak')">짧은 휴식</button>
-        <button class="tab-btn" id="tabLong" onclick="switchMode('longBreak')">긴 휴식</button>
-      </div>
+      <div class="mode-indicator" id="modeIndicator">집중 모드</div>
 
       <div class="target-badge" id="targetBadge">🎯 뽀모도로 달성! 계속 누적 중</div>
       <div class="timer-display" id="timeDisplay">25:00</div>
-      <div class="shortcut-hint">Space: 시작/정지 (초과시 다음 단계)</div>
+      <div class="shortcut-hint">Space: 시작/정지 (초과시 넘기기)</div>
 
       <div class="controls">
         <button class="btn-main" id="btnToggle" onclick="toggleTimer()">시작</button>
-        <button class="btn-secondary" id="btnNextAction" onclick="handleNextAction(false)">쉬는 시간</button>
+        <button class="btn-secondary" id="btnNextAction" onclick="handleNextAction(false)" title="다음 단계로 넘기기">▶|</button>
       </div>
 
-      <div class="active-task-banner" id="activeTaskBanner">
-        집중 중
-      </div>
+      <div class="active-task-banner" id="activeTaskBanner"></div>
     </div>
 
     <!-- Tasks Section -->
@@ -876,7 +856,7 @@
         longBreak: 15
       },
       timer: {
-        mode: 'focus',
+        mode: 'focus', // 'focus' | 'shortBreak' | 'longBreak'
         isRunning: false,
         startTimestamp: null,
         accumulatedSeconds: 0,
@@ -1001,7 +981,7 @@
 
       const title = mode === 'focus' ? '🎯 뽀모도로 달성 완료!' : '☕ 휴식 시간이 끝났습니다!';
       const body = mode === 'focus' 
-        ? '목표 시간에 도달했습니다. 계속 공부하거나 Space를 눌러 휴식을 시작하세요.' 
+        ? '목표 시간에 도달했습니다. 계속 공부하거나 Space를 눌러 넘기세요.' 
         : '충분한 휴식을 취하셨나요? Space를 눌러 바로 다음 공부를 시작하세요.';
 
       const notif = new Notification(title, { body, tag: 'pomo-alert' });
@@ -1110,7 +1090,7 @@
       const root = document.documentElement;
 
       let displayStr = '';
-      const modeNames = { focus: '집중', shortBreak: '휴식', longBreak: '긴 휴식' };
+      const modeNames = { focus: '집중 모드', shortBreak: '휴식 모드', longBreak: '긴 휴식 모드' };
       const isOvertime = elapsed >= targetSec;
 
       if (!isOvertime) {
@@ -1130,7 +1110,7 @@
 
         if (state.timer.mode === 'focus') {
           root.style.setProperty('--current-bg', 'var(--bg-break)');
-          badge.textContent = `🎯 뽀모도로 달성! (${formatSeconds(elapsed)} 집중 중 · Space: 휴식 시작)`;
+          badge.textContent = `🎯 뽀모도로 달성! (${formatSeconds(elapsed)} 집중 중 · Space: 넘기기)`;
         } else {
           root.style.setProperty('--current-bg', 'var(--bg-break-over)');
           badge.textContent = `☕ 휴식 시간 초과! (Space: 공부 시작)`;
@@ -1228,7 +1208,7 @@
         state.records[targetDate] = { totalSeconds: 0, pomodoros: 0, sessions: 0 };
       }
 
-      const earnedPomos = Math.floor(actualSeconds / targetSeconds);
+      const earnedPomos = Math.max(1, Math.floor(actualSeconds / targetSeconds));
 
       state.records[targetDate].totalSeconds += actualSeconds;
       state.records[targetDate].sessions += 1;
@@ -1252,21 +1232,18 @@
       state.timer.startTimestamp = null;
       state.timer.alertFired = false;
 
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       const root = document.documentElement;
+      const indicator = document.getElementById('modeIndicator');
 
       if (newMode === 'focus') {
-        document.getElementById('tabFocus').classList.add('active');
         root.style.setProperty('--current-bg', 'var(--bg-focus)');
-        document.getElementById('btnNextAction').textContent = '쉬는 시간';
-      } else if (newMode === 'shortBreak' || newMode === 'longBreak') {
-        if (newMode === 'longBreak') {
-          document.getElementById('tabLong').classList.add('active');
-        } else {
-          document.getElementById('tabShort').classList.add('active');
-        }
+        indicator.textContent = '집중 모드';
+      } else if (newMode === 'shortBreak') {
         root.style.setProperty('--current-bg', 'var(--bg-break)');
-        document.getElementById('btnNextAction').textContent = '공부 시작';
+        indicator.textContent = '휴식 모드';
+      } else if (newMode === 'longBreak') {
+        root.style.setProperty('--current-bg', 'var(--bg-break)');
+        indicator.textContent = '긴 휴식 모드';
       }
 
       tick();
@@ -1275,14 +1252,20 @@
     }
 
     /* ==========================================================
-       7. INTELLIGENT SPACEBAR SHORTCUT (MODAL GUARDED)
+       7. SHORTCUTS & ESCAPE LISTENER FOR MODALS
     ========================================================== */
     window.addEventListener('keydown', (e) => {
       const isInputActive = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
-      const isModalOpen = document.getElementById('calendarModal').classList.contains('open') ||
-                          document.getElementById('settingsModal').classList.contains('open');
+      const isCalOpen = document.getElementById('calendarModal').classList.contains('open');
+      const isSetOpen = document.getElementById('settingsModal').classList.contains('open');
 
-      if (isInputActive || isModalOpen) {
+      if (e.key === 'Escape') {
+        if (isCalOpen) closeCalendarModal();
+        if (isSetOpen) closeSettingsModal();
+        return;
+      }
+
+      if (isInputActive || isCalOpen || isSetOpen) {
         return;
       }
 
@@ -1396,8 +1379,8 @@
 
       const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
       document.getElementById('activeTaskBanner').textContent = activeTask 
-        ? `[${activeTask.title}] 하는 중` 
-        : '집중 중';
+        ? `[${activeTask.title}]하는 중` 
+        : '';
     }
 
     /* ==========================================================
