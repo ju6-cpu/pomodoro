@@ -880,6 +880,7 @@
         isRunning: false,
         startTimestamp: null,
         accumulatedSeconds: 0,
+        cycleIndex: 1,
         alertFired: false,
         sessionTargetDate: null
       },
@@ -1157,7 +1158,7 @@
     }
 
     /* ==========================================================
-       6. SESSION COMMITTING & ACCURATE CYCLE ADVANCEMENT
+       6. SESSION COMMITTING & ACCURATE 1-POMODORO INDEXING
     ========================================================== */
     function handleNextAction(autoStart = false) {
       initAudioContext();
@@ -1174,13 +1175,14 @@
           commitFocusSession(elapsed, focusTargetSec);
         }
 
-        // 오늘 누적 완료된 뽀모도로 개수를 기준으로 정확히 판정 (4, 8, 12회 완료 시에만 긴 휴식)
+        // 방금 완료된 뽀모도로 개수를 기준으로 긴 휴식 여부 판단 (4, 8, 12회 완료 시 긴 휴식)
         const currentPomos = state.records[targetDate]?.pomodoros || 0;
         const isCycleComplete = currentPomos > 0 && currentPomos % 4 === 0;
         const nextMode = isCycleComplete ? 'longBreak' : 'shortBreak';
 
         switchMode(nextMode);
       } else {
+        // 휴식이 끝났을 때 다음 집중 모드로 복귀
         switchMode('focus');
       }
 
@@ -1277,14 +1279,23 @@
     });
 
     /* ==========================================================
-       8. LABELS & BADGES SYNC
+       8. LABELS & BADGES SYNC (휴식 포함 1뽀모 세트 연동)
     ========================================================== */
     function updateBadgesAndLabels() {
       const activeDate = getActiveSessionDate();
       document.getElementById('studyDateLabel').textContent = activeDate;
 
       const record = state.records[activeDate] || { pomodoros: 0 };
-      const currentNumber = (record.pomodoros || 0) + 1;
+      let currentNumber = (record.pomodoros || 0);
+
+      // 집중 중일 때는 아직 안 끝났으므로 완료된 뽀모도로 + 1
+      // 휴식 중일 때는 방금 완료한 그 뽀모도로 세트 번호(#3)를 그대로 유지
+      if (state.timer.mode === 'focus') {
+        currentNumber += 1;
+      } else {
+        currentNumber = Math.max(1, currentNumber);
+      }
+
       document.getElementById('sessionCounterBadge').textContent = `🍅 #${currentNumber}`;
     }
 
