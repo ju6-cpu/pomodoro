@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>25:00 - 집중 | Pomodoro!!</title>
+  <title>Pomodoro 집중 타이머</title>
   <!-- Perfect Centered Tomato Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='55' font-size='75' text-anchor='middle' dominant-baseline='central'>🍅</text></svg>">
   <style>
@@ -760,7 +760,7 @@
       </div>
 
       <div class="active-task-banner" id="activeTaskBanner">
-        진행 중인 과목: 없음
+        선택된 과목 없음
       </div>
     </div>
 
@@ -1371,8 +1371,8 @@
 
       const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
       document.getElementById('activeTaskBanner').textContent = activeTask 
-        ? `진행 중인 과목: ${activeTask.title}` 
-        : '진행 중인 과목: 없음';
+        ? `${activeTask.title} 하는 중` 
+        : '선택된 과목 없음';
     }
 
     /* ==========================================================
