@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>25:00 - 집중 | Pomodoro!!</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍅</text></svg>">
+  <!-- High-res Vector Tomato Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍅</text></svg>">
   <style>
     :root {
       --bg-focus: #ba4949;          /* 집중 정상: 차분한 딥레드 */
@@ -880,7 +881,6 @@
         isRunning: false,
         startTimestamp: null,
         accumulatedSeconds: 0,
-        cycleIndex: 1,
         alertFired: false,
         sessionTargetDate: null
       },
@@ -1158,7 +1158,7 @@
     }
 
     /* ==========================================================
-       6. SESSION COMMITTING & ACCURATE 1-POMODORO INDEXING
+       6. SESSION COMMITTING & ACCURATE SET INDEXING
     ========================================================== */
     function handleNextAction(autoStart = false) {
       initAudioContext();
@@ -1175,14 +1175,12 @@
           commitFocusSession(elapsed, focusTargetSec);
         }
 
-        // 방금 완료된 뽀모도로 개수를 기준으로 긴 휴식 여부 판단 (4, 8, 12회 완료 시 긴 휴식)
         const currentPomos = state.records[targetDate]?.pomodoros || 0;
         const isCycleComplete = currentPomos > 0 && currentPomos % 4 === 0;
         const nextMode = isCycleComplete ? 'longBreak' : 'shortBreak';
 
         switchMode(nextMode);
       } else {
-        // 휴식이 끝났을 때 다음 집중 모드로 복귀
         switchMode('focus');
       }
 
@@ -1279,21 +1277,22 @@
     });
 
     /* ==========================================================
-       8. LABELS & BADGES SYNC (휴식 포함 1뽀모 세트 연동)
+       8. LABELS & BADGES SYNC (휴식 포함 1세트 번호 고정)
     ========================================================== */
     function updateBadgesAndLabels() {
       const activeDate = getActiveSessionDate();
       document.getElementById('studyDateLabel').textContent = activeDate;
 
       const record = state.records[activeDate] || { pomodoros: 0 };
-      let currentNumber = (record.pomodoros || 0);
+      const completedPomos = record.pomodoros || 0;
 
-      // 집중 중일 때는 아직 안 끝났으므로 완료된 뽀모도로 + 1
-      // 휴식 중일 때는 방금 완료한 그 뽀모도로 세트 번호(#3)를 그대로 유지
+      let currentNumber;
       if (state.timer.mode === 'focus') {
-        currentNumber += 1;
+        // 집중 중일 때는 현재 진행 중인 번호 (완료된 것 + 1)
+        currentNumber = completedPomos + 1;
       } else {
-        currentNumber = Math.max(1, currentNumber);
+        // 휴식 중일 때는 방금 완료한 그 세트 번호를 그대로 유지 (3번째 휴식이면 #3)
+        currentNumber = Math.max(1, completedPomos);
       }
 
       document.getElementById('sessionCounterBadge').textContent = `🍅 #${currentNumber}`;
