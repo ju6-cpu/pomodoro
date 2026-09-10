@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>25:00 - 집중 | Pomodoro!!</title>
+  <!-- Embedded Tomato Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍅</text></svg>">
+  <style>
+    :root {
+      --bg-focus: #ba4949;          /* 집중 정상: 차분한 딥레드 */
+      --bg-break: #436d67;          /* 휴식 정상 & 집중 초과: 눈이 편안한 청록 */
+      --bg-break-over: #a34848;     /* 휴식 초과: 집중 복귀 유도 톤다운 레드 */
+      --card-bg: rgba(255, 255, 255, 0.16);
+      --card-bg-solid: #ffffff;
+      --text-white: #ffffff;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --current-bg: var(--bg-focus);
+      --transition-speed: 0.35s;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--current-bg);
+      color: var(--text-white);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: background-color var(--transition-speed) ease;
+      padding-bottom: 90px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .brand {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-header {
+      background: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: var(--text-white);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-header:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    main {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 20px;
+      gap: 20px;
+    }
+
+    /* Minimal Date & Sequence */
+    .study-date-label {
+      font-size: 0.95rem;
+      font-weight: 600;
+      opacity: 0.9;
+      letter-spacing: 0.5px;
+      user-select: none;
+    }
+
+    .session-counter-badge {
+      font-size: 1.15rem;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.18);
+      padding: 6px 20px;
+      border-radius: 30px;
+      letter-spacing: 0.5px;
+      user-select: none;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Main Timer Card with Glassmorphism */
+    .timer-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      width: 100%;
+      border-radius: 16px;
+      padding: 30px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.12);
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-white);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      opacity: 0.75;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(0, 0, 0, 0.22);
+      opacity: 1;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+
+    .target-badge {
+      font-size: 0.85rem;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      padding: 5px 14px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      display: none;
+      animation: softPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes softPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+      100% { transform: scale(1); }
+    }
+
+    /* Fluid Responsive Timer Typography */
+    .timer-display {
+      font-size: clamp(4.2rem, 17vw, 5.8rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+      margin: 4px 0;
+      user-select: none;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .shortcut-hint {
+      font-size: 0.75rem;
+      opacity: 0.75;
+      margin-top: 6px;
+      margin-bottom: 18px;
+      user-select: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Dynamic Coloring Main Button (Text matches current theme) */
+    .btn-main {
+      background-color: var(--card-bg-solid);
+      color: var(--current-bg);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 46px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.14);
+      transition: transform 0.1s, box-shadow 0.1s, color 0.3s;
+    }
+
+    .btn-main:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.14);
+    }
+
+    .btn-secondary {
+      background: rgba(0, 0, 0, 0.18);
+      color: var(--text-white);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 13px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(0, 0, 0, 0.28);
+    }
+
+    .active-task-banner {
+      width: 100%;
+      text-align: center;
+      margin-top: 18px;
+      font-size: 0.95rem;
+      opacity: 0.95;
+      font-weight: 500;
+    }
+
+    /* Tasks Section */
+    .tasks-section {
+      width: 100%;
+    }
+
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    /* Clean Active Task Card Styling (Left Accent + Soft Elevation) */
+    .task-item {
+      background: #ffffff;
+      color: var(--text-dark);
+      padding: 14px 18px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+      border-left: 5px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .task-item:hover {
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .task-item.active {
+      border-left-color: var(--current-bg);
+      background-color: #f8fafc;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1);
+    }
+
+    .task-item.done {
+      text-decoration: line-through;
+      opacity: 0.45;
+    }
+
+    .task-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .task-left input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--current-bg);
+    }
+
+    .task-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .task-pomo-count {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .btn-del-task {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.35rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s, background-color 0.15s;
+    }
+
+    .btn-del-task:hover {
+      color: #ef4444;
+      background-color: #fee2e2;
+    }
+
+    .task-input-box {
+      display: flex;
+      gap: 8px;
+    }
+
+    .task-input {
+      flex: 1;
+      padding: 11px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.95);
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      outline: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-add-task {
+      background: rgba(0, 0, 0, 0.22);
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-add-task:hover {
+      background: rgba(0, 0, 0, 0.32);
+    }
+
+    /* Below-the-fold Live Analytics */
+    .stats-card {
+      background: var(--card-bg-solid);
+      color: var(--text-dark);
+      width: 100%;
+      border-radius: 14px;
+      padding: 26px 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      margin-top: 10px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .stat-box {
+      background: #f8fafc;
+      padding: 14px 10px;
+      border-radius: 8px;
+      border: 1px solid #f1f5f9;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .stat-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .chart-container {
+      position: relative;
+    }
+
+    .chart-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: var(--text-dark);
+    }
+
+    .chart-bars {
+      display: flex;
+      align-items: flex-end;
+      height: 145px;
+      gap: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+    }
+
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      position: relative;
+      cursor: pointer;
+    }
+
+    /* Pill-shaped modern bars with smooth hover effect */
+    .bar-fill {
+      width: 100%;
+      background: #e2e8f0;
+      border-radius: 6px 6px 2px 2px;
+      transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s;
+      min-height: 5px;
+    }
+
+    .bar-col:hover .bar-fill {
+      background: var(--current-bg);
+      opacity: 0.85;
+    }
+
+    .bar-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      background: #0f172a;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -100%);
+      transition: opacity 0.15s;
+      white-space: nowrap;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Modal Layouts with Backdrop Blur */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: white;
+      color: var(--text-dark);
+      padding: 26px 24px;
+      border-radius: 16px;
+      width: 92%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: #94a3b8;
+      transition: color 0.15s;
+    }
+
+    .modal-close:hover {
+      color: #0f172a;
+    }
+
+    /* Calendar Grid with Rounded Tile Design */
+    .calendar-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .cal-title-text {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .btn-cal-arrow {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.85rem;
+      transition: background 0.15s;
+    }
+
+    .btn-cal-arrow:hover {
+      background: #f1f5f9;
+    }
+
+    .month-summary-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+    }
+
+    .month-stat-val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-top: 2px;
+    }
+
+    .month-stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      text-align: center;
+    }
+
+    .cal-header-cell {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #94a3b8;
+      padding-bottom: 4px;
+    }
+
+    .cal-day-cell {
+      min-height: 52px;
+      border: 1px solid #f1f5f9;
+      border-radius: 8px;
+      padding: 4px 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      font-size: 0.75rem;
+      background: #ffffff;
+      transition: transform 0.15s ease;
+    }
+
+    .cal-day-cell.empty {
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .cal-day-cell.today-cell {
+      border: 1.8px solid var(--current-bg);
+      font-weight: 700;
+    }
+
+    .cal-day-num {
+      color: #475569;
+      margin-bottom: 2px;
+      font-size: 0.75rem;
+    }
+
+    .cal-day-time {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 0.7rem;
+      line-height: 1.1;
+    }
+
+    .cal-day-pomo {
+      font-size: 0.65rem;
+      color: #e11d48;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    .heat-1 { background-color: #f0fdf4; }
+    .heat-2 { background-color: #dcfce7; }
+    .heat-3 { background-color: #bbf7d0; }
+    .heat-4 { background-color: #86efac; }
+
+    /* Settings Modal */
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .setting-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .setting-input {
+      width: 75px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 0.9rem;
+      text-align: right;
+    }
+
+    .btn-save-modal {
+      width: 100%;
+      background: var(--current-bg);
+      color: white;
+      border: none;
+      padding: 11px;
+      border-radius: 8px;
+      font-weight: 700;
+      margin-top: 10px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-save-modal:hover {
+      opacity: 0.92;
+    }
+
+    .modal-sub-section {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .sub-section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+
+    .btn-action-full {
+      width: 100%;
+      padding: 9px 12px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      color: #334155;
+      transition: background 0.15s;
+    }
+
+    .btn-action-full:hover {
+      background: #f1f5f9;
+    }
+
+    .backup-btn-group {
+      display: flex;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>🍅</span> Pomodoro!!
+    </div>
+    <div class="nav-buttons">
+      <button class="btn-header" onclick="openCalendarModal()">📊 통계 달력</button>
+      <button class="btn-header" onclick="openSettingsModal()">⚙️ 설정 & 백업</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Simple Study Date & Sequence Badge -->
+    <div class="study-date-label" id="studyDateLabel">
+      2026-09-10
+    </div>
+
+    <div class="session-counter-badge" id="sessionCounterBadge">
+      🍅 #1
+    </div>
+
+    <!-- Main Timer Card -->
+    <div class="timer-card">
+      <div class="mode-tabs">
+        <button class="tab-btn active" id="tabFocus" onclick="switchMode('focus')">집중</button>
+        <button class="tab-btn" id="tabShort" onclick="switchMode('shortBreak')">짧은 휴식</button>
+        <button class="tab-btn" id="tabLong" onclick="switchMode('longBreak')">긴 휴식</button>
+      </div>
+
+      <div class="target-badge" id="targetBadge">🎯 뽀모도로 달성! 계속 누적 중</div>
+      <div class="timer-display" id="timeDisplay">25:00</div>
+      <div class="shortcut-hint">Space: 시작/정지 (초과시 다음 단계)</div>
+
+      <div class="controls">
+        <button class="btn-main" id="btnToggle" onclick="toggleTimer()">시작</button>
+        <button class="btn-secondary" id="btnNextAction" onclick="handleNextAction(false)">쉬는 시간</button>
+      </div>
+
+      <div class="active-task-banner" id="activeTaskBanner">
+        진행 중인 과목: 없음
+      </div>
+    </div>
+
+    <!-- Tasks Section -->
+    <div class="tasks-section">
+      <div class="section-title">할 일 목록 (Tasks)</div>
+      <div class="task-list" id="taskListContainer"></div>
+      <div class="task-input-box">
+        <input type="text" id="taskInput" class="task-input" placeholder="공부할 과목이나 할 일을 입력하세요..." onkeydown="if(event.key==='Enter') addTask()">
+        <button class="btn-add-task" onclick="addTask()">추가</button>
+      </div>
+    </div>
+
+    <!-- Below-the-fold Live Analytics Card -->
+    <div class="stats-card">
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">오늘 공부 시간</div>
+          <div class="stat-val" id="statTodayTime">0h 0m</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">완료 뽀모도로</div>
+          <div class="stat-val" id="statTodayPomo">0개</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">연속 스트릭</div>
+          <div class="stat-val" id="statStreak">0일</div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">
+          <span>최근 7일 집중 추이</span>
+        </div>
+        <div class="chart-bars" id="chartBarsContainer"></div>
+        <div class="chart-tooltip" id="chartTooltip"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Monthly Calendar Modal -->
+  <div class="modal-overlay" id="calendarModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">📊 월간 공부 달력</div>
+        <button class="modal-close" onclick="closeCalendarModal()">&times;</button>
+      </div>
+
+      <div class="calendar-nav">
+        <button class="btn-cal-arrow" onclick="shiftCalendarMonth(-1)">‹ 이전달</button>
+        <span class="cal-title-text" id="calTitleText">2026년 9월</span>
+        <button class="btn-cal-arrow" onclick="shiftCalendarMonth(1)">다음달 ›</button>
+      </div>
+
+      <div class="month-summary-box">
+        <div>
+          <div class="month-stat-label">월간 총 순공</div>
+          <div class="month-stat-val" id="monthTotalTime">0h 0m</div>
+        </div>
+        <div>
+          <div class="month-stat-label">완료 뽀모도로</div>
+          <div class="month-stat-val" id="monthTotalPomo">0개</div>
+        </div>
+        <div>
+          <div class="month-stat-label">학습 일수</div>
+          <div class="month-stat-val" id="monthTotalDays">0일</div>
+        </div>
+      </div>
+
+      <div class="calendar-grid" id="calendarGridContainer"></div>
+    </div>
+  </div>
+
+  <!-- Settings & Backup Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">⚙️ 설정 및 데이터 백업</div>
+        <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
+      </div>
+      
+      <div class="setting-row">
+        <span class="setting-label">집중 시간 (분)</span>
+        <input type="number" id="settingFocus" class="setting-input" min="1" max="180">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">짧은 휴식 (분)</span>
+        <input type="number" id="settingShort" class="setting-input" min="1" max="60">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">긴 휴식 (분)</span>
+        <input type="number" id="settingLong" class="setting-input" min="1" max="60">
+      </div>
+      <button class="btn-save-modal" onclick="saveSettings()">시간 설정 저장</button>
+
+      <div class="modal-sub-section">
+        <div class="sub-section-title">💾 데이터 영구 백업 및 복원</div>
+        <div class="backup-btn-group">
+          <button class="btn-action-full" onclick="exportDataJson()">백업 다운 (.json)</button>
+          <button class="btn-action-full" onclick="document.getElementById('importFileInput').click()">기록 복원</button>
+          <input type="file" id="importFileInput" style="display:none;" accept=".json" onchange="importDataJson(event)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'pomodoro_study_app_data_v1';
+
+    let state = {
+      settings: {
+        focusTime: 25,
+        shortBreak: 5,
+        longBreak: 15
+      },
+      timer: {
+        mode: 'focus',
+        isRunning: false,
+        startTimestamp: null,
+        accumulatedSeconds: 0,
+        cycleIndex: 1,
+        alertFired: false,
+        sessionTargetDate: null
+      },
+      notificationRequested: false,
+      tasks: [],
+      activeTaskId: null,
+      records: {}
+    };
+
+    let calViewYear = new Date().getFullYear();
+    let calViewMonth = new Date().getMonth();
+
+    let audioContext = null;
+    let bgWorker = null;
+
+    /* ==========================================================
+       1. 5 AM CUTOFF & DATE COMPUTATION
+    ========================================================== */
+    function getStudyDate(ts = Date.now()) {
+      const shifted = new Date(ts - 5 * 3600 * 1000);
+      const y = shifted.getFullYear();
+      const m = String(shifted.getMonth() + 1).padStart(2, '0');
+      const d = String(shifted.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function getActiveSessionDate() {
+      return state.timer.sessionTargetDate || getStudyDate();
+    }
+
+    function getLiveStudySeconds(dateStr) {
+      const base = state.records[dateStr]?.totalSeconds || 0;
+      if (dateStr === getActiveSessionDate() && state.timer.mode === 'focus') {
+        return base + getCurrentElapsedSeconds();
+      }
+      return base;
+    }
+
+    /* ==========================================================
+       2. BACKGROUND WEB WORKER
+    ========================================================== */
+    function initWebWorker() {
+      const workerCode = `
+        let interval = null;
+        self.onmessage = function(e) {
+          if (e.data === 'start') {
+            if (interval) clearInterval(interval);
+            interval = setInterval(() => self.postMessage('tick'), 250);
+          } else if (e.data === 'stop') {
+            if (interval) clearInterval(interval);
+            interval = null;
+          }
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      bgWorker = new Worker(URL.createObjectURL(blob));
+      bgWorker.onmessage = function() {
+        tick();
+      };
+    }
+
+    /* ==========================================================
+       3. SOUND & NOTIFICATIONS
+    ========================================================== */
+    function initAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+    }
+
+    function playTone(freq, startTime, duration, type = 'sine') {
+      try {
+        initAudioContext();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime + startTime);
+        gain.gain.setValueAtTime(0.25, audioContext.currentTime + startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+
+        osc.start(audioContext.currentTime + startTime);
+        osc.stop(audioContext.currentTime + startTime + duration);
+      } catch (e) {
+        console.error('Audio error:', e);
+      }
+    }
+
+    function triggerCompletionSound(mode) {
+      if (mode === 'focus') {
+        playTone(587.33, 0.0, 0.25);
+        playTone(880.00, 0.2, 0.5);
+      } else {
+        playTone(523.25, 0.0, 0.18);
+        playTone(659.25, 0.18, 0.18);
+        playTone(783.99, 0.36, 0.45);
+      }
+    }
+
+    function checkNotificationPermissionOnce() {
+      if (!state.notificationRequested) {
+        state.notificationRequested = true;
+        saveState();
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+    }
+
+    function triggerDesktopNotification(mode) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+      const title = mode === 'focus' ? '🎯 25분 집중 달성! (뽀모도로 완료)' : '☕ 휴식 시간이 끝났습니다!';
+      const body = mode === 'focus' 
+        ? '목표 시간에 도달했습니다. 계속 공부하거나 Space를 눌러 휴식을 시작하세요.' 
+        : '충분한 휴식을 취하셨나요? Space를 눌러 바로 다음 공부를 시작하세요.';
+
+      const notif = new Notification(title, { body, tag: 'pomo-alert' });
+      notif.onclick = function() {
+        window.focus();
+        this.close();
+      };
+    }
+
+    /* ==========================================================
+       4. PERSISTENCE & RELOAD RECOVERY
+    ========================================================== */
+    function loadState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          state = { ...state, ...parsed };
+        } catch (e) {
+          console.error("Data fallback.", e);
+        }
+      }
+
+      if (state.timer.isRunning && state.timer.startTimestamp) {
+        const delta = Math.floor((Date.now() - state.timer.startTimestamp) / 1000);
+        state.timer.accumulatedSeconds += Math.max(0, delta);
+      }
+
+      state.timer.isRunning = false;
+      state.timer.startTimestamp = null;
+      state.timer.alertFired = false;
+      if (!state.timer.sessionTargetDate) {
+        state.timer.sessionTargetDate = getStudyDate();
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    /* ==========================================================
+       5. TIMER ENGINE & DYNAMIC COLORING
+    ========================================================== */
+    function getTargetSeconds() {
+      if (state.timer.mode === 'focus') return state.settings.focusTime * 60;
+      if (state.timer.mode === 'shortBreak') return state.settings.shortBreak * 60;
+      return state.settings.longBreak * 60;
+    }
+
+    function getCurrentElapsedSeconds() {
+      if (!state.timer.isRunning) {
+        return state.timer.accumulatedSeconds;
+      }
+      const now = Date.now();
+      const delta = Math.floor((now - state.timer.startTimestamp) / 1000);
+      return state.timer.accumulatedSeconds + delta;
+    }
+
+    function toggleTimer() {
+      initAudioContext();
+      checkNotificationPermissionOnce();
+
+      if (state.timer.isRunning) {
+        pauseTimer();
+      } else {
+        startTimer();
+      }
+    }
+
+    function startTimer() {
+      if (state.timer.accumulatedSeconds === 0) {
+        state.timer.sessionTargetDate = getStudyDate();
+      }
+
+      state.timer.isRunning = true;
+      state.timer.startTimestamp = Date.now();
+      document.getElementById('btnToggle').textContent = '일시정지';
+      saveState();
+      
+      if (bgWorker) bgWorker.postMessage('start');
+      tick();
+    }
+
+    function pauseTimer() {
+      state.timer.accumulatedSeconds = getCurrentElapsedSeconds();
+      state.timer.isRunning = false;
+      state.timer.startTimestamp = null;
+      
+      if (bgWorker) bgWorker.postMessage('stop');
+      document.getElementById('btnToggle').textContent = '시작';
+      saveState();
+      renderStatsAndChart();
+      updateBadgesAndLabels();
+    }
+
+    let lastRenderSec = -1;
+
+    function tick() {
+      const elapsed = getCurrentElapsedSeconds();
+      const targetSec = getTargetSeconds();
+      const badge = document.getElementById('targetBadge');
+      const root = document.documentElement;
+
+      let displayStr = '';
+      const modeNames = { focus: '집중', shortBreak: '짧은 휴식', longBreak: '긴 휴식' };
+      const isOvertime = elapsed >= targetSec;
+
+      if (!isOvertime) {
+        const remaining = targetSec - elapsed;
+        displayStr = formatSeconds(remaining);
+        badge.style.display = 'none';
+
+        if (state.timer.mode === 'focus') {
+          root.style.setProperty('--current-bg', 'var(--bg-focus)');
+        } else {
+          root.style.setProperty('--current-bg', 'var(--bg-break)');
+        }
+      } else {
+        const overtime = elapsed - targetSec;
+        displayStr = `+${formatSeconds(overtime)}`;
+        badge.style.display = 'block';
+
+        if (state.timer.mode === 'focus') {
+          root.style.setProperty('--current-bg', 'var(--bg-break)');
+          badge.textContent = `🎯 뽀모도로 달성! (${formatSeconds(elapsed)} 집중 중 · Space: 휴식 시작)`;
+        } else {
+          root.style.setProperty('--current-bg', 'var(--bg-break-over)');
+          badge.textContent = `☕ 휴식 시간 초과! (Space: 공부 시작)`;
+        }
+
+        if (!state.timer.alertFired && state.timer.isRunning) {
+          state.timer.alertFired = true;
+          triggerCompletionSound(state.timer.mode);
+          triggerDesktopNotification(state.timer.mode);
+        }
+      }
+
+      document.getElementById('timeDisplay').textContent = displayStr;
+      document.title = `${displayStr} - ${modeNames[state.timer.mode]} | Pomodoro!!`;
+
+      if (elapsed !== lastRenderSec) {
+        lastRenderSec = elapsed;
+        if (state.timer.mode === 'focus') {
+          renderStatsAndChart();
+        }
+        updateBadgesAndLabels();
+      }
+    }
+
+    function formatSeconds(totalSec) {
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    /* ==========================================================
+       6. SESSION COMMITTING & TRANSITIONS
+    ========================================================== */
+    function handleNextAction(autoStart = false) {
+      initAudioContext();
+      const elapsed = getCurrentElapsedSeconds();
+      const focusTargetSec = state.settings.focusTime * 60;
+
+      if (state.timer.isRunning) {
+        pauseTimer();
+      }
+
+      if (state.timer.mode === 'focus') {
+        if (elapsed > 0) {
+          commitFocusSession(elapsed, focusTargetSec);
+        }
+
+        const isCycleComplete = state.timer.cycleIndex >= 4;
+        const nextMode = isCycleComplete ? 'longBreak' : 'shortBreak';
+        state.timer.cycleIndex = isCycleComplete ? 1 : state.timer.cycleIndex + 1;
+
+        switchMode(nextMode);
+      } else {
+        switchMode('focus');
+      }
+
+      state.timer.accumulatedSeconds = 0;
+      state.timer.startTimestamp = null;
+      state.timer.alertFired = false;
+      state.timer.sessionTargetDate = getStudyDate();
+
+      tick();
+      saveState();
+      renderAll();
+
+      if (autoStart) {
+        startTimer();
+      }
+    }
+
+    function commitFocusSession(actualSeconds, targetSeconds) {
+      const targetDate = state.timer.sessionTargetDate || getStudyDate();
+      if (!state.records[targetDate]) {
+        state.records[targetDate] = { totalSeconds: 0, pomodoros: 0, sessions: 0 };
+      }
+
+      const isCompletedPomo = actualSeconds >= targetSeconds;
+
+      state.records[targetDate].totalSeconds += actualSeconds;
+      state.records[targetDate].sessions += 1;
+      if (isCompletedPomo) {
+        state.records[targetDate].pomodoros += 1;
+      }
+
+      if (state.activeTaskId && isCompletedPomo) {
+        const task = state.tasks.find(t => t.id === state.activeTaskId);
+        if (task) {
+          task.completedPomodoros = (task.completedPomodoros || 0) + 1;
+        }
+      }
+    }
+
+    function switchMode(newMode) {
+      pauseTimer();
+      state.timer.mode = newMode;
+      state.timer.accumulatedSeconds = 0;
+      state.timer.startTimestamp = null;
+      state.timer.alertFired = false;
+
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const root = document.documentElement;
+
+      if (newMode === 'focus') {
+        document.getElementById('tabFocus').classList.add('active');
+        root.style.setProperty('--current-bg', 'var(--bg-focus)');
+        document.getElementById('btnNextAction').textContent = '쉬는 시간';
+      } else if (newMode === 'shortBreak') {
+        document.getElementById('tabShort').classList.add('active');
+        root.style.setProperty('--current-bg', 'var(--bg-break)');
+        document.getElementById('btnNextAction').textContent = '공부 시작';
+      } else if (newMode === 'longBreak') {
+        document.getElementById('tabLong').classList.add('active');
+        root.style.setProperty('--current-bg', 'var(--bg-break)');
+        document.getElementById('btnNextAction').textContent = '공부 시작';
+      }
+
+      tick();
+      updateBadgesAndLabels();
+      saveState();
+    }
+
+    /* ==========================================================
+       7. INTELLIGENT SPACEBAR SHORTCUT (MODAL GUARDED)
+    ========================================================== */
+    window.addEventListener('keydown', (e) => {
+      const isInputActive = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+      const isModalOpen = document.getElementById('calendarModal').classList.contains('open') ||
+                          document.getElementById('settingsModal').classList.contains('open');
+
+      if (isInputActive || isModalOpen) {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+
+        const elapsed = getCurrentElapsedSeconds();
+        const targetSec = getTargetSeconds();
+        const isOvertime = elapsed >= targetSec;
+
+        if (isOvertime) {
+          handleNextAction(true);
+        } else {
+          toggleTimer();
+        }
+      }
+    });
+
+    /* ==========================================================
+       8. LABELS & BADGES SYNC
+    ========================================================== */
+    function updateBadgesAndLabels() {
+      const activeDate = getActiveSessionDate();
+      document.getElementById('studyDateLabel').textContent = activeDate;
+
+      const record = state.records[activeDate] || { pomodoros: 0 };
+      const currentNumber = (record.pomodoros || 0) + 1;
+      document.getElementById('sessionCounterBadge').textContent = `🍅 #${currentNumber}`;
+    }
+
+    /* ==========================================================
+       9. TASK MANAGEMENT
+    ========================================================== */
+    function addTask() {
+      const input = document.getElementById('taskInput');
+      const val = input.value.trim();
+      if (!val) return;
+
+      const newTask = {
+        id: 'task_' + Date.now(),
+        title: val,
+        completedPomodoros: 0,
+        isDone: false
+      };
+
+      state.tasks.push(newTask);
+      if (!state.activeTaskId) {
+        state.activeTaskId = newTask.id;
+      }
+      input.value = '';
+      saveState();
+      renderTasks();
+    }
+
+    function selectTask(id) {
+      state.activeTaskId = id;
+      saveState();
+      renderTasks();
+    }
+
+    function toggleTaskDone(id, event) {
+      event.stopPropagation();
+      const task = state.tasks.find(t => t.id === id);
+      if (task) {
+        task.isDone = !task.isDone;
+        saveState();
+        renderTasks();
+      }
+    }
+
+    function deleteTask(id, event) {
+      event.stopPropagation();
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      if (state.activeTaskId === id) {
+        state.activeTaskId = state.tasks.length > 0 ? state.tasks[0].id : null;
+      }
+      saveState();
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('taskListContainer');
+      container.innerHTML = '';
+
+      state.tasks.forEach(t => {
+        const item = document.createElement('div');
+        const isActive = t.id === state.activeTaskId;
+        item.className = `task-item ${isActive ? 'active' : ''} ${t.isDone ? 'done' : ''}`;
+        item.onclick = () => selectTask(t.id);
+
+        item.innerHTML = `
+          <div class="task-left">
+            <input type="checkbox" ${t.isDone ? 'checked' : ''} onclick="toggleTaskDone('${t.id}', event)">
+            <span>${escapeHtml(t.title)}</span>
+          </div>
+          <div class="task-right">
+            <span class="task-pomo-count">🍅 ${t.completedPomodoros || 0}</span>
+            <button class="btn-del-task" onclick="deleteTask('${t.id}', event)" title="삭제">×</button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+
+      const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+      document.getElementById('activeTaskBanner').textContent = activeTask 
+        ? `진행 중인 과목: ${activeTask.title}` 
+        : '진행 중인 과목: 없음';
+    }
+
+    /* ==========================================================
+       10. LIVE STATS & 7-DAY BAR CHART
+    ========================================================== */
+    function calculateStreak() {
+      let streak = 0;
+      const anchorDateStr = getActiveSessionDate();
+      const [y, m, d] = anchorDateStr.split('-').map(Number);
+      let checkDate = new Date(y, m - 1, d);
+
+      while (true) {
+        const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+        const record = state.records[dateStr];
+        if (record && record.pomodoros >= 1) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+
+    function renderStatsAndChart() {
+      const activeDate = getActiveSessionDate();
+      const curRecord = state.records[activeDate] || { totalSeconds: 0, pomodoros: 0, sessions: 0 };
+      const liveTotalSec = getLiveStudySeconds(activeDate);
+
+      const hrs = Math.floor(liveTotalSec / 3600);
+      const mins = Math.floor((liveTotalSec % 3600) / 60);
+
+      document.getElementById('statTodayTime').textContent = `${hrs}h ${mins}m`;
+      document.getElementById('statTodayPomo').textContent = `${curRecord.pomodoros}개`;
+      document.getElementById('statStreak').textContent = `${calculateStreak()}일`;
+
+      renderChart();
+    }
+
+    function renderChart() {
+      const container = document.getElementById('chartBarsContainer');
+      const tooltip = document.getElementById('chartTooltip');
+      container.innerHTML = '';
+
+      const days = [];
+      const activeDate = getActiveSessionDate();
+      const [y, m, d] = activeDate.split('-').map(Number);
+      for (let i = 6; i >= 0; i--) {
+        const dt = new Date(y, m - 1, d);
+        dt.setDate(dt.getDate() - i);
+        days.push(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`);
+      }
+
+      let maxSec = 1800;
+      days.forEach(dateStr => {
+        const sec = getLiveStudySeconds(dateStr);
+        if (sec > maxSec) maxSec = sec;
+      });
+
+      days.forEach(dateStr => {
+        const liveSec = getLiveStudySeconds(dateStr);
+        const pomoCount = state.records[dateStr]?.pomodoros || 0;
+        const heightPct = Math.round((liveSec / maxSec) * 100);
+
+        const col = document.createElement('div');
+        col.className = 'bar-col';
+
+        const fill = document.createElement('div');
+        fill.className = 'bar-fill';
+        fill.style.height = `${Math.max(5, heightPct)}%`;
+        if (dateStr === activeDate) {
+          fill.style.backgroundColor = 'var(--current-bg)';
+        }
+
+        const label = document.createElement('div');
+        label.className = 'bar-label';
+        label.textContent = dateStr.slice(8);
+
+        col.appendChild(fill);
+        col.appendChild(label);
+
+        col.addEventListener('mouseenter', () => {
+          const hrs = Math.floor(liveSec / 3600);
+          const mins = Math.floor((liveSec % 3600) / 60);
+          const secs = liveSec % 60;
+          const isOngoing = (dateStr === activeDate && state.timer.mode === 'focus' && state.timer.isRunning);
+
+          tooltip.innerHTML = `<strong>${dateStr}</strong>${isOngoing ? ' (측정 중)' : ''}<br>순공: ${hrs > 0 ? hrs + '시간 ' : ''}${mins}분 ${secs}초<br>뽀모도로: ${pomoCount}개`;
+          tooltip.style.opacity = '1';
+          
+          const rect = col.getBoundingClientRect();
+          const parentRect = container.getBoundingClientRect();
+          tooltip.style.left = `${rect.left - parentRect.left + rect.width / 2}px`;
+          tooltip.style.top = `${rect.top - parentRect.top - 8}px`;
+        });
+
+        col.addEventListener('mouseleave', () => {
+          tooltip.style.opacity = '0';
+        });
+
+        container.appendChild(col);
+      });
+    }
+
+    /* ==========================================================
+       11. MONTHLY CALENDAR MODAL
+    ========================================================== */
+    function openCalendarModal() {
+      const activeDate = getActiveSessionDate();
+      const [y, m] = activeDate.split('-').map(Number);
+      calViewYear = y;
+      calViewMonth = m - 1;
+
+      renderCalendar();
+      document.getElementById('calendarModal').classList.add('open');
+    }
+
+    function closeCalendarModal() {
+      document.getElementById('calendarModal').classList.remove('open');
+    }
+
+    function shiftCalendarMonth(offset) {
+      calViewMonth += offset;
+      if (calViewMonth < 0) {
+        calViewMonth = 11;
+        calViewYear -= 1;
+      } else if (calViewMonth > 11) {
+        calViewMonth = 0;
+        calViewYear += 1;
+      }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      document.getElementById('calTitleText').textContent = `${calViewYear}년 ${calViewMonth + 1}월`;
+
+      const container = document.getElementById('calendarGridContainer');
+      container.innerHTML = '';
+
+      const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+      dayNames.forEach(d => {
+        const h = document.createElement('div');
+        h.className = 'cal-header-cell';
+        h.textContent = d;
+        container.appendChild(h);
+      });
+
+      const firstDayIndex = new Date(calViewYear, calViewMonth, 1).getDay();
+      const totalDays = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+
+      for (let i = 0; i < firstDayIndex; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'cal-day-cell empty';
+        container.appendChild(emptyCell);
+      }
+
+      let monthSec = 0;
+      let monthPomo = 0;
+      let monthStudyDays = 0;
+      const todayStr = getActiveSessionDate();
+
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${calViewYear}-${String(calViewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const sec = getLiveStudySeconds(dateStr);
+        const pomo = state.records[dateStr]?.pomodoros || 0;
+
+        if (sec > 0 || pomo > 0) {
+          monthSec += sec;
+          monthPomo += pomo;
+          monthStudyDays++;
+        }
+
+        const cell = document.createElement('div');
+        cell.className = 'cal-day-cell';
+        if (dateStr === todayStr) cell.classList.add('today-cell');
+
+        const hrs = sec / 3600;
+        if (hrs >= 8) cell.classList.add('heat-4');
+        else if (hrs >= 5) cell.classList.add('heat-3');
+        else if (hrs >= 2) cell.classList.add('heat-2');
+        else if (hrs > 0) cell.classList.add('heat-1');
+
+        let content = `<div class="cal-day-num">${day}</div>`;
+        if (sec > 0) {
+          const h = Math.floor(sec / 3600);
+          const m = Math.floor((sec % 3600) / 60);
+          content += `<div class="cal-day-time">${h > 0 ? h + 'h ' : ''}${m}m</div>`;
+        }
+        if (pomo > 0) {
+          content += `<div class="cal-day-pomo">🍅 ${pomo}</div>`;
+        }
+
+        cell.innerHTML = content;
+        container.appendChild(cell);
+      }
+
+      const mHrs = Math.floor(monthSec / 3600);
+      const mMins = Math.floor((monthSec % 3600) / 60);
+      document.getElementById('monthTotalTime').textContent = `${mHrs}h ${mMins}m`;
+      document.getElementById('monthTotalPomo').textContent = `${monthPomo}개`;
+      document.getElementById('monthTotalDays').textContent = `${monthStudyDays}일`;
+    }
+
+    /* ==========================================================
+       12. SETTINGS & BACKUP
+    ========================================================== */
+    function openSettingsModal() {
+      document.getElementById('settingFocus').value = state.settings.focusTime;
+      document.getElementById('settingShort').value = state.settings.shortBreak;
+      document.getElementById('settingLong').value = state.settings.longBreak;
+      document.getElementById('settingsModal').classList.add('open');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('open');
+    }
+
+    function saveSettings() {
+      const f = parseInt(document.getElementById('settingFocus').value, 10);
+      const s = parseInt(document.getElementById('settingShort').value, 10);
+      const l = parseInt(document.getElementById('settingLong').value, 10);
+
+      if (f > 0) state.settings.focusTime = f;
+      if (s > 0) state.settings.shortBreak = s;
+      if (l > 0) state.settings.longBreak = l;
+
+      closeSettingsModal();
+      saveState();
+      tick();
+    }
+
+    function exportDataJson() {
+      const dataStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pomodoro_study_backup_${getStudyDate()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importDataJson(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.settings && imported.records) {
+            state = { ...state, ...imported };
+            state.timer.isRunning = false;
+            state.timer.startTimestamp = null;
+            saveState();
+            renderAll();
+            alert('데이터가 성공적으로 복원되었습니다.');
+            closeSettingsModal();
+          } else {
+            alert('올바른 백업 파일 형식이 아닙니다.');
+          }
+        } catch (err) {
+          alert('파일 읽기 오류: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    window.addEventListener('click', (e) => {
+      if (e.target.id === 'calendarModal') closeCalendarModal();
+      if (e.target.id === 'settingsModal') closeSettingsModal();
+    });
+
+    /* ==========================================================
+       13. INITIALIZATION
+    ========================================================== */
+    function renderAll() {
+      updateBadgesAndLabels();
+      renderTasks();
+      renderStatsAndChart();
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      initWebWorker();
+      renderAll();
+      tick();
+    });
+  </script>
+</body>
+</html>
