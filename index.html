@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>25:00 - 집중 | Pomodoro!!</title>
-  <!-- High-res Vector Tomato Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍅</text></svg>">
+  <!-- Perfect Centered Tomato Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='55' font-size='75' text-anchor='middle' dominant-baseline='central'>🍅</text></svg>">
   <style>
     :root {
       --bg-focus: #ba4949;          /* 집중 정상: 차분한 딥레드 */
@@ -1277,7 +1277,7 @@
     });
 
     /* ==========================================================
-       8. LABELS & BADGES SYNC (휴식 포함 1세트 번호 고정)
+       8. LABELS & BADGES SYNC
     ========================================================== */
     function updateBadgesAndLabels() {
       const activeDate = getActiveSessionDate();
@@ -1288,10 +1288,8 @@
 
       let currentNumber;
       if (state.timer.mode === 'focus') {
-        // 집중 중일 때는 현재 진행 중인 번호 (완료된 것 + 1)
         currentNumber = completedPomos + 1;
       } else {
-        // 휴식 중일 때는 방금 완료한 그 세트 번호를 그대로 유지 (3번째 휴식이면 #3)
         currentNumber = Math.max(1, completedPomos);
       }
 
