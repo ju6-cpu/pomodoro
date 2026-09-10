@@ -176,12 +176,12 @@
       align-items: center;
     }
 
+    /* 시작/일시정지 부드러운 크로스페이드 및 크기 고정 스타일 */
     .btn-main {
       background-color: var(--card-bg-solid);
       color: var(--current-bg);
       border: none;
       border-radius: 8px;
-      padding: 12px 0;
       min-width: 170px;
       height: 52px;
       font-size: 1.25rem;
@@ -199,6 +199,44 @@
     .btn-main:active {
       transform: translateY(3px);
       box-shadow: 0 2px 0 rgba(0, 0, 0, 0.14);
+    }
+
+    .btn-text-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-text {
+      position: absolute;
+      width: 100%;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .btn-text.start-text {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .btn-text.pause-text {
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+    }
+
+    .btn-main.paused .start-text {
+      opacity: 0;
+      transform: translateY(-8px);
+      pointer-events: none;
+    }
+
+    .btn-main.paused .pause-text {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
     }
 
     .btn-secondary {
@@ -782,7 +820,12 @@
       <div class="shortcut-hint">Space: 시작/정지 (초과시 넘기기)</div>
 
       <div class="controls">
-        <button class="btn-main" id="btnToggle" onclick="toggleTimer()">시작</button>
+        <button class="btn-main" id="btnToggle" onclick="toggleTimer()">
+          <div class="btn-text-wrap">
+            <span class="btn-text start-text">시작</span>
+            <span class="btn-text pause-text">일시정지</span>
+          </div>
+        </button>
         <button class="btn-secondary" id="btnNextAction" onclick="tryHandleNextAction()" title="다음 단계로 넘기기">▶|</button>
       </div>
 
@@ -987,6 +1030,7 @@
       state.timer.startTimestamp = null;
       state.timer.alertFired = false;
       if (!state.timer.sessionTargetDate) state.timer.sessionTargetDate = getStudyDate();
+      updateToggleUI(false);
     }
 
     function saveState() {
@@ -1009,11 +1053,17 @@
       else startTimer();
     }
 
+    function updateToggleUI(isRunning) {
+      const btn = document.getElementById('btnToggle');
+      if (isRunning) btn.classList.add('paused');
+      else btn.classList.remove('paused');
+    }
+
     function startTimer() {
       if (state.timer.accumulatedSeconds === 0) state.timer.sessionTargetDate = getStudyDate();
       state.timer.isRunning = true;
       state.timer.startTimestamp = Date.now();
-      document.getElementById('btnToggle').textContent = '일시정지';
+      updateToggleUI(true);
       saveState();
       if (bgWorker) bgWorker.postMessage('start');
       tick();
@@ -1024,7 +1074,7 @@
       state.timer.isRunning = false;
       state.timer.startTimestamp = null;
       if (bgWorker) bgWorker.postMessage('stop');
-      document.getElementById('btnToggle').textContent = '시작';
+      updateToggleUI(false);
       saveState();
       renderStatsAndChart();
       updateBadgesAndLabels();
@@ -1070,7 +1120,6 @@
         const rs = remainingToTarget % 60;
         document.getElementById('warningTimeText').textContent = `${rm}분 ${rs}초`;
 
-        // 핵심 수정: 무조건 목표 시간 - 3분(180초)을 유예 기준점으로 적용
         const warningThreshold = Math.max(0, focusTargetSec - 180);
         if (elapsed >= warningThreshold) {
           closeWarningModal();
@@ -1095,7 +1144,7 @@
     function tryHandleNextAction() {
       const elapsed = getCurrentElapsedSeconds();
       const focusTargetSec = state.settings.focusTime * 60;
-      const warningThreshold = Math.max(0, focusTargetSec - 180); // 무조건 3분 전
+      const warningThreshold = Math.max(0, focusTargetSec - 180);
 
       if (state.timer.mode === 'focus' && elapsed < warningThreshold) {
         const remainingToTarget = focusTargetSec - elapsed;
@@ -1121,7 +1170,7 @@
       initAudioContext();
       const elapsed = getCurrentElapsedSeconds();
       const focusTargetSec = state.settings.focusTime * 60;
-      const warningThreshold = Math.max(0, focusTargetSec - 180); // 무조건 3분 전
+      const warningThreshold = Math.max(0, focusTargetSec - 180);
 
       if (state.timer.isRunning) pauseTimer();
 
