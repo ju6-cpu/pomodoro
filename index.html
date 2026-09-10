@@ -876,12 +876,13 @@
         longBreak: 15
       },
       timer: {
-        mode: 'focus',
+        mode: 'focus', // 'focus' | 'shortBreak' | 'longBreak'
         isRunning: false,
         startTimestamp: null,
         accumulatedSeconds: 0,
         alertFired: false,
-        sessionTargetDate: null
+        sessionTargetDate: null,
+        breakTargetSeconds: 0 // 동적 산정된 휴식 총 초수
       },
       notificationRequested: false,
       tasks: [],
@@ -998,7 +999,7 @@
     function triggerDesktopNotification(mode) {
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-      const title = mode === 'focus' ? '🎯 25분 집중 달성! (뽀모도로 완료)' : '☕ 휴식 시간이 끝났습니다!';
+      const title = mode === 'focus' ? '🎯 뽀모도로 달성 완료!' : '☕ 휴식 시간이 끝났습니다!';
       const body = mode === 'focus' 
         ? '목표 시간에 도달했습니다. 계속 공부하거나 Space를 눌러 휴식을 시작하세요.' 
         : '충분한 휴식을 취하셨나요? Space를 눌러 바로 다음 공부를 시작하세요.';
@@ -1042,12 +1043,17 @@
     }
 
     /* ==========================================================
-       5. TIMER ENGINE & COLOR TRANSITIONS
+       5. TIMER ENGINE & TARGET DYNAMICS
     ========================================================== */
     function getTargetSeconds() {
-      if (state.timer.mode === 'focus') return state.settings.focusTime * 60;
-      if (state.timer.mode === 'shortBreak') return state.settings.shortBreak * 60;
-      return state.settings.longBreak * 60;
+      if (state.timer.mode === 'focus') {
+        return state.settings.focusTime * 60;
+      }
+      // 휴식 모드일 때는 동적으로 산정된 휴식 초수 반환 (기본값 설정값 * 60)
+      if (state.timer.breakTargetSeconds > 0) {
+        return state.timer.breakTargetSeconds;
+      }
+      return state.settings.shortBreak * 60;
     }
 
     function getCurrentElapsedSeconds() {
@@ -1105,7 +1111,7 @@
       const root = document.documentElement;
 
       let displayStr = '';
-      const modeNames = { focus: '집중', shortBreak: '짧은 휴식', longBreak: '긴 휴식' };
+      const modeNames = { focus: '집중', shortBreak: '휴식', longBreak: '긴 휴식' };
       const isOvertime = elapsed >= targetSec;
 
       if (!isOvertime) {
@@ -1157,11 +1163,12 @@
     }
 
     /* ==========================================================
-       6. 25분 단위 뚝뚝 끊어 뽀모도로 환산 및 휴식 연동 로직
+       6. MULTI-POMO CONVERSION & DYNAMIC BREAK CALCULATION
     ========================================================== */
     function handleNextAction(autoStart = false) {
       initAudioContext();
       const elapsed = getCurrentElapsedSeconds();
+      const focusTargetSec = state.settings.focusTime * 60; // 25분 (1500초)
 
       if (state.timer.isRunning) {
         pauseTimer();
@@ -1169,14 +1176,35 @@
 
       if (state.timer.mode === 'focus') {
         const targetDate = state.timer.sessionTargetDate || getStudyDate();
+        let earnedPomos = 0;
+
         if (elapsed > 0) {
-          commitFocusSession(elapsed);
+          earnedPomos = commitFocusSessionDynamic(elapsed, focusTargetSec);
         }
 
-        // 오늘 누적된 완료 뽀모도로 개수 확인 (4, 8, 12회 완료 시 긴 휴식)
-        const currentPomos = state.records[targetDate]?.pomodoros || 0;
-        const isCycleComplete = currentPomos > 0 && currentPomos % 4 === 0;
-        const nextMode = isCycleComplete ? 'longBreak' : 'shortBreak';
+        // 방금 달성한 뽀모도로 개수(earnedPomos)를 바탕으로 이번 휴식의 총 시간 및 모드 결정
+        let totalBreakMinutes = 0;
+        let hasMultipleOfFour = false;
+        
+        // 이전 누적 개수에서 이번에 얻은 개수만큼 순차적으로 체크
+        const totalPomosNow = state.records[targetDate]?.pomodoros || 0;
+        const startPomoIndex = totalPomosNow - earnedPomos + 1;
+
+        for (let i = startPomoIndex; i <= totalPomosNow; i++) {
+          if (i > 0 && i % 4 === 0) {
+            totalBreakMinutes += state.settings.longBreak; // 15분
+            hasMultipleOfFour = true;
+          } else {
+            totalBreakMinutes += state.settings.shortBreak; // 5분
+          }
+        }
+
+        if (earnedPomos === 0) {
+          totalBreakMinutes = state.settings.shortBreak;
+        }
+
+        state.timer.breakTargetSeconds = totalBreakMinutes * 60;
+        const nextMode = hasMultipleOfFour ? 'longBreak' : 'shortBreak';
 
         switchMode(nextMode);
       } else {
@@ -1197,22 +1225,20 @@
       }
     }
 
-    function commitFocusSession(actualSeconds) {
+    // 소수점 아래는 버리고 25분 단위 몫만큼 뽀모도로 인정
+    function commitFocusSessionDynamic(actualSeconds, targetSeconds) {
       const targetDate = state.timer.sessionTargetDate || getStudyDate();
       if (!state.records[targetDate]) {
         state.records[targetDate] = { totalSeconds: 0, pomodoros: 0, sessions: 0 };
       }
 
-      // [핵심 변경] 25분(1500초) 단위로 뚝뚝 끊어서 몇 뽀모도로인지 산출 (예: 50분 공부했으면 2뽀모 통째로 인정)
-      const focusUnitSec = state.settings.focusTime * 60;
-      const earnedPomos = Math.floor(actualSeconds / focusUnitSec);
+      const earnedPomos = Math.floor(actualSeconds / targetSeconds);
 
       state.records[targetDate].totalSeconds += actualSeconds;
       state.records[targetDate].sessions += 1;
-
+      
       if (earnedPomos > 0) {
         state.records[targetDate].pomodoros += earnedPomos;
-
         if (state.activeTaskId) {
           const task = state.tasks.find(t => t.id === state.activeTaskId);
           if (task) {
@@ -1220,6 +1246,7 @@
           }
         }
       }
+      return earnedPomos;
     }
 
     function switchMode(newMode) {
@@ -1236,12 +1263,12 @@
         document.getElementById('tabFocus').classList.add('active');
         root.style.setProperty('--current-bg', 'var(--bg-focus)');
         document.getElementById('btnNextAction').textContent = '쉬는 시간';
-      } else if (newMode === 'shortBreak') {
-        document.getElementById('tabShort').classList.add('active');
-        root.style.setProperty('--current-bg', 'var(--bg-break)');
-        document.getElementById('btnNextAction').textContent = '공부 시작';
-      } else if (newMode === 'longBreak') {
-        document.getElementById('tabLong').classList.add('active');
+      } else if (newMode === 'shortBreak' || newMode === 'longBreak') {
+        if (newMode === 'longBreak') {
+          document.getElementById('tabLong').classList.add('active');
+        } else {
+          document.getElementById('tabShort').classList.add('active');
+        }
         root.style.setProperty('--current-bg', 'var(--bg-break)');
         document.getElementById('btnNextAction').textContent = '공부 시작';
       }
