@@ -181,13 +181,13 @@
       color: var(--current-bg);
       border: none;
       border-radius: 8px;
-      min-width: 170px;
+      flex: 1;
       height: 52px;
       font-size: 1.25rem;
       font-weight: 800;
       cursor: pointer;
       box-shadow: 0 5px 0 rgba(0, 0, 0, 0.14);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.3s ease, color 0.3s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.3s ease, color 0.3s ease, flex 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
       display: flex;
@@ -243,7 +243,6 @@
       color: var(--text-white);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 8px;
-      padding: 0 18px;
       height: 52px;
       font-size: 1.1rem;
       font-weight: 700;
@@ -251,8 +250,27 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.25s ease, transform 0.15s ease;
-      display: none; /* 기본적으로 숨김 처리 */
+      
+      /* 부드러운 슬라이딩/스르륵 전환 효과 설정 */
+      width: 0;
+      padding: 0;
+      opacity: 0;
+      border-width: 0;
+      overflow: hidden;
+      pointer-events: none;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                  padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                  opacity 0.2s ease, 
+                  border-width 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .btn-secondary.show {
+      width: 64px; /* 넘기기 버튼이 딱 알맞게 들어갈 너비 */
+      padding: 0 18px;
+      opacity: 1;
+      border-width: 1px;
+      pointer-events: auto;
     }
 
     .btn-secondary:hover {
@@ -858,7 +876,7 @@
     <div class="timer-card">
       <div class="mode-indicator" id="modeIndicator">집중 모드</div>
 
-      <div class="target-badge" id="targetBadge">🎯 뽀모도로 달성! (🍅 1개 획득 · Space: 넘기기)</div>
+      <div class="target-badge" id="targetBadge">🎯 뽀모도로 달성! (🍅 1개 획득! · Space: 넘기기)</div>
       <div class="timer-display" id="timeDisplay">25:00</div>
       <div class="shortcut-hint">Space: 시작/정지 (초과시 넘기기)</div>
 
@@ -1104,21 +1122,18 @@
       else startTimer();
     }
 
-    // 넘기기 버튼 가시성 제어 함수 (25분 이전 정지 상태이거나 휴식 시간일 때만 노출)
     function updateNextButtonVisibility() {
       const btnNext = document.getElementById('btnNextAction');
       const elapsed = getCurrentElapsedSeconds();
       const focusTargetSec = state.settings.focusTime * 60;
 
       if (state.timer.mode !== 'focus') {
-        // 휴식 시간일 때는 항상 표시
-        btnNext.style.display = 'flex';
+        btnNext.classList.add('show');
       } else {
-        // 집중 모드일 때: 25분 이전이면서 일시정지(멈춰있거나) 상태일 때만 표시
         if (elapsed < focusTargetSec && !state.timer.isRunning) {
-          btnNext.style.display = 'flex';
+          btnNext.classList.add('show');
         } else {
-          btnNext.style.display = 'none';
+          btnNext.classList.remove('show');
         }
       }
     }
@@ -1175,7 +1190,7 @@
           root.style.setProperty('--current-bg', 'var(--bg-break)');
           const focusTargetSec = state.settings.focusTime * 60;
           const currentPomoIndex = Math.floor(elapsed / focusTargetSec);
-          badge.textContent = `🎯 뽀모도로 달성! (🍅 ${currentPomoIndex}개 획득 · Space: 넘기기)`;
+          badge.textContent = `🎯 뽀모도로 달성! (🍅 ${currentPomoIndex}개 획득! · Space: 넘기기)`;
         } else {
           root.style.setProperty('--current-bg', 'var(--bg-break-over)');
           badge.textContent = `☕ 휴식 시간 초과! (Space: 공부 시작)`;
@@ -1204,7 +1219,6 @@
       document.getElementById('timeDisplay').textContent = displayStr;
       document.title = `${displayStr} - ${modeNames[state.timer.mode]} | Pomodoro!!`;
 
-      // 25분 도달 시점에 자동으로 버튼 가시성 업데이트 (집중 중 오버타임 진입 시 숨김 처리)
       updateNextButtonVisibility();
 
       const warningModal = document.getElementById('warningModal');
