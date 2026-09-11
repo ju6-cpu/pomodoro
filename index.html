@@ -252,6 +252,7 @@
       align-items: center;
       justify-content: center;
       transition: background 0.25s ease, transform 0.15s ease;
+      display: none; /* 기본적으로 숨김 처리 */
     }
 
     .btn-secondary:hover {
@@ -1103,10 +1104,30 @@
       else startTimer();
     }
 
+    // 넘기기 버튼 가시성 제어 함수 (25분 이전 정지 상태이거나 휴식 시간일 때만 노출)
+    function updateNextButtonVisibility() {
+      const btnNext = document.getElementById('btnNextAction');
+      const elapsed = getCurrentElapsedSeconds();
+      const focusTargetSec = state.settings.focusTime * 60;
+
+      if (state.timer.mode !== 'focus') {
+        // 휴식 시간일 때는 항상 표시
+        btnNext.style.display = 'flex';
+      } else {
+        // 집중 모드일 때: 25분 이전이면서 일시정지(멈춰있거나) 상태일 때만 표시
+        if (elapsed < focusTargetSec && !state.timer.isRunning) {
+          btnNext.style.display = 'flex';
+        } else {
+          btnNext.style.display = 'none';
+        }
+      }
+    }
+
     function updateToggleUI(isRunning) {
       const btn = document.getElementById('btnToggle');
       if (isRunning) btn.classList.add('paused');
       else btn.classList.remove('paused');
+      updateNextButtonVisibility();
     }
 
     function startTimer() {
@@ -1182,6 +1203,9 @@
 
       document.getElementById('timeDisplay').textContent = displayStr;
       document.title = `${displayStr} - ${modeNames[state.timer.mode]} | Pomodoro!!`;
+
+      // 25분 도달 시점에 자동으로 버튼 가시성 업데이트 (집중 중 오버타임 진입 시 숨김 처리)
+      updateNextButtonVisibility();
 
       const warningModal = document.getElementById('warningModal');
       if (warningModal.classList.contains('open') && state.timer.mode === 'focus') {
@@ -1359,6 +1383,7 @@
       const pomos = state.records[activeDate]?.pomodoros || 0;
       const currentNumber = pomos + 1;
       document.getElementById('sessionCounterBadge').textContent = `🍅 #${currentNumber}`;
+      updateNextButtonVisibility();
     }
 
     function addTask() {
@@ -1538,7 +1563,7 @@
       if (e.target.id === 'warningModal') closeWarningModal();
     };
 
-    function renderAll() { updateBadgesAndLabels(); renderTasks(); renderStatsAndChart(); }
+    function renderAll() { updateBadgesAndLabels(); renderTasks(); renderStatsAndChart(); updateNextButtonVisibility(); }
     function escapeHtml(str) { return str.replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t])); }
 
     window.addEventListener('DOMContentLoaded', () => { loadState(); initWebWorker(); renderAll(); tick(); });
