@@ -176,7 +176,6 @@
       align-items: center;
     }
 
-    /* 시작/일시정지 부드러운 크로스페이드 및 크기 고정 스타일 */
     .btn-main {
       background-color: var(--card-bg-solid);
       color: var(--current-bg);
@@ -771,6 +770,7 @@
     .backup-btn-group {
       display: flex;
       gap: 8px;
+      margin-bottom: 8px;
     }
 
     .btn-backup-action {
@@ -793,6 +793,54 @@
       border-color: #94a3b8;
       transform: translateY(-1px);
     }
+
+    .btn-backup-full {
+      width: 100%;
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .btn-backup-full:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      transform: translateY(-1px);
+    }
+
+    /* 토스트 팝업 메시지 스타일 (이번만입니다... +1 🍅) */
+    .toast-popup {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 23, 42, 0.92);
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast-popup.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   </style>
 </head>
 <body>
@@ -802,7 +850,7 @@
       <span>🍅</span> Pomodoro!!
     </div>
     <div class="nav-buttons">
-      <button class="btn-header" onclick="openCalendarModal()">📊 통계 달력</button>
+      <button class="btn-header" onclick="openCalendarModal()">📊 통계</button>
       <button class="btn-header" onclick="openSettingsModal()">⚙️ 설정 & 백업</button>
     </div>
   </header>
@@ -882,6 +930,9 @@
     </div>
   </div>
 
+  <!-- 토스트 팝업 -->
+  <div class="toast-popup" id="toastPopup">이번만입니다... +1 🍅</div>
+
   <!-- 월간 달력 모달 -->
   <div class="modal-overlay" id="calendarModal">
     <div class="modal">
@@ -933,12 +984,13 @@
       </div>
       <button class="btn-save-modal" onclick="saveSettings()">시간 설정 저장</button>
       <div class="modal-sub-section">
-        <div class="sub-section-title">💾 데이터 영구 백업 및 복원</div>
+        <div class="sub-section-title">💾 데이터 백업 및 복원</div>
         <div class="backup-btn-group">
           <button class="btn-backup-action" onclick="exportDataJson()">백업 다운 (.json)</button>
           <button class="btn-backup-action" onclick="document.getElementById('importFileInput').click()">기록 복원</button>
           <input type="file" id="importFileInput" style="display:none;" accept=".json" onchange="importDataJson(event)">
         </div>
+        <button class="btn-backup-full" onclick="resetAllData()">데이터 초기화</button>
       </div>
     </div>
   </div>
@@ -1018,6 +1070,13 @@
       else { playTone(523.25, 0.0, 0.18); playTone(659.25, 0.18, 0.18); playTone(783.99, 0.36, 0.45); }
     }
 
+    function triggerDesktopNotification(mode) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const title = mode === 'focus' ? '🎯 뽀모도로 달성 완료!' : '☕ 휴식 시간이 끝났습니다!';
+      const body = mode === 'focus' ? '목표 시간에 도달했습니다.' : '휴식 시간이 종료되었습니다.';
+      new Notification(title, { body, tag: 'pomo-alert' });
+    }
+
     function loadState() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -1095,6 +1154,7 @@
       if (!isOvertime) {
         displayStr = formatSeconds(targetSec - elapsed);
         badge.style.display = 'none';
+        state.timer.alertFired = false;
         root.style.setProperty('--current-bg', state.timer.mode === 'focus' ? 'var(--bg-focus)' : 'var(--bg-break)');
       } else {
         displayStr = `+${formatSeconds(elapsed - targetSec)}`;
@@ -1106,30 +1166,42 @@
           root.style.setProperty('--current-bg', 'var(--bg-break-over)');
           badge.textContent = `☕ 휴식 시간 초과! (Space: 공부 시작)`;
         }
-        if (!state.timer.alertFired && state.timer.isRunning) {
+
+        if (state.timer.mode === 'focus' && state.timer.isRunning) {
+          const focusTargetSec = state.settings.focusTime * 60;
+          const currentPomoCount = Math.floor(elapsed / focusTargetSec);
+          
+          if (currentPomoCount > 0) {
+            if (!state.timer.lastAlertPomoCount || state.timer.lastAlertPomoCount < currentPomoCount) {
+              state.timer.lastAlertPomoCount = currentPomoCount;
+              triggerCompletionSound(state.timer.mode);
+              triggerDesktopNotification(state.timer.mode);
+            }
+          }
+        }
+
+        if (!state.timer.alertFired && state.timer.isRunning && !state.timer.lastAlertPomoCount) {
           state.timer.alertFired = true;
           triggerCompletionSound(state.timer.mode);
+          triggerDesktopNotification(state.timer.mode);
         }
       }
 
       document.getElementById('timeDisplay').textContent = displayStr;
-      
-      // 탭 제목(Title)에 남은 시간 및 모드 실시간 동기화 복구
       document.title = `${displayStr} - ${modeNames[state.timer.mode]} | Pomodoro!!`;
 
       const warningModal = document.getElementById('warningModal');
       if (warningModal.classList.contains('open') && state.timer.mode === 'focus') {
         const focusTargetSec = state.settings.focusTime * 60;
-        const remainingToTarget = Math.max(0, focusTargetSec - elapsed);
-        const rm = Math.floor(remainingToTarget / 60);
-        const rs = remainingToTarget % 60;
-        document.getElementById('warningTimeText').textContent = `${rm}분 ${rs}초`;
+        const remainingToTarget = focusTargetSec - elapsed;
+        const absRem = Math.abs(remainingToTarget);
+        const rm = Math.floor(absRem / 60);
+        const rs = absRem % 60;
 
-        const warningThreshold = Math.max(0, focusTargetSec - 180);
-        if (elapsed >= warningThreshold) {
-          closeWarningModal();
-          handleNextAction();
-          return;
+        if (remainingToTarget >= 0) {
+          document.getElementById('warningTimeText').textContent = `${rm}분 ${rs}초`;
+        } else {
+          document.getElementById('warningTimeText').textContent = `+${rm}분 ${rs}초 (초과)`;
         }
       }
 
@@ -1149,9 +1221,9 @@
     function tryHandleNextAction() {
       const elapsed = getCurrentElapsedSeconds();
       const focusTargetSec = state.settings.focusTime * 60;
-      const warningThreshold = Math.max(0, focusTargetSec - 180);
 
-      if (state.timer.mode === 'focus' && elapsed < warningThreshold) {
+      // 목표 시간 미만일 때는 언제든 조기 종료 경고창 오픈
+      if (state.timer.mode === 'focus' && elapsed < focusTargetSec) {
         const remainingToTarget = focusTargetSec - elapsed;
         const rm = Math.floor(remainingToTarget / 60);
         const rs = remainingToTarget % 60;
@@ -1166,8 +1238,25 @@
       document.getElementById('warningModal').classList.remove('open');
     }
 
+    let isGraceQuit = false;
+
     function confirmEarlyQuit() {
+      const elapsed = getCurrentElapsedSeconds();
+      const focusTargetSec = state.settings.focusTime * 60;
+      const warningThreshold = Math.max(0, focusTargetSec - 180); // 3분 전 (22분)
+
       closeWarningModal();
+
+      // 22분~24분 사이(유예 구간)에 경고창에서 '그래도 종료'를 누른 경우에만 인정 + 토스트 팝업
+      if (elapsed >= warningThreshold && elapsed < focusTargetSec) {
+        isGraceQuit = true;
+        const toast = document.getElementById('toastPopup');
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2500);
+      }
+
       handleNextAction();
     }
 
@@ -1175,7 +1264,6 @@
       initAudioContext();
       const elapsed = getCurrentElapsedSeconds();
       const focusTargetSec = state.settings.focusTime * 60;
-      const warningThreshold = Math.max(0, focusTargetSec - 180);
 
       if (state.timer.isRunning) pauseTimer();
 
@@ -1190,7 +1278,7 @@
           state.records[targetDate].totalSeconds += elapsed;
           state.records[targetDate].sessions += 1;
 
-          if (elapsed >= warningThreshold) {
+          if (elapsed >= focusTargetSec || isGraceQuit) {
             earnedPomos = Math.max(1, Math.floor(elapsed / focusTargetSec));
             state.records[targetDate].pomodoros += earnedPomos;
             if (state.activeTaskId) {
@@ -1199,6 +1287,7 @@
             }
           }
         }
+        isGraceQuit = false;
 
         let totalBreakMinutes = 0;
         let hasMultipleOfFour = false;
@@ -1220,8 +1309,10 @@
       state.timer.accumulatedSeconds = 0;
       state.timer.startTimestamp = null;
       state.timer.alertFired = false;
+      state.timer.lastAlertPomoCount = 0;
       state.timer.sessionTargetDate = getStudyDate();
-      tick();
+      
+      startTimer();
       saveState();
       renderAll();
     }
@@ -1231,6 +1322,7 @@
       state.timer.accumulatedSeconds = 0;
       state.timer.startTimestamp = null;
       state.timer.alertFired = false;
+      state.timer.lastAlertPomoCount = 0;
       
       const root = document.documentElement;
       const indicator = document.getElementById('modeIndicator');
@@ -1262,8 +1354,11 @@
 
       if (e.code === 'Space') {
         e.preventDefault();
-        if (getCurrentElapsedSeconds() >= getTargetSeconds()) tryHandleNextAction();
-        else toggleTimer();
+        if (getCurrentElapsedSeconds() >= getTargetSeconds()) {
+          handleNextAction();
+        } else {
+          toggleTimer();
+        }
       }
     });
 
@@ -1271,7 +1366,8 @@
       const activeDate = getActiveSessionDate();
       document.getElementById('studyDateLabel').textContent = activeDate;
       const pomos = state.records[activeDate]?.pomodoros || 0;
-      const currentNumber = Math.max(1, pomos + (state.timer.mode === 'focus' ? 1 : 0));
+      // 핵심 수정: 상단 배지 번호는 오직 '완료한 뽀모 개수 + 1'로만 깔끔하게 동기화
+      const currentNumber = pomos + 1;
       document.getElementById('sessionCounterBadge').textContent = `🍅 #${currentNumber}`;
     }
 
@@ -1413,6 +1509,22 @@
       closeSettingsModal();
       saveState();
       tick();
+    }
+
+    function resetAllData() {
+      if (confirm('정말로 모든 공부 기록과 데이터를 초기화하시겠습니까?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        state.records = {};
+        state.tasks = [];
+        state.activeTaskId = null;
+        state.timer.accumulatedSeconds = 0;
+        state.timer.isRunning = false;
+        state.timer.startTimestamp = null;
+        closeSettingsModal();
+        renderAll();
+        tick();
+        alert('모든 데이터가 초기화되었습니다.');
+      }
     }
 
     function exportDataJson() {
