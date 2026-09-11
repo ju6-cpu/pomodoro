@@ -857,7 +857,7 @@
     <div class="timer-card">
       <div class="mode-indicator" id="modeIndicator">집중 모드</div>
 
-      <div class="target-badge" id="targetBadge">🎯 뽀모도로 달성! 계속 누적 중</div>
+      <div class="target-badge" id="targetBadge">🎯 뽀모도로 달성! (🍅 1개째 달성 중 · Space: 넘기기)</div>
       <div class="timer-display" id="timeDisplay">25:00</div>
       <div class="shortcut-hint">Space: 시작/정지 (초과시 넘기기)</div>
 
@@ -1088,7 +1088,8 @@
 
     function getTargetSeconds() {
       if (state.timer.mode === 'focus') return state.settings.focusTime * 60;
-      return state.timer.breakTargetSeconds > 0 ? state.timer.breakTargetSeconds : state.settings.shortBreak * 60;
+      const baseBreakSec = state.timer.breakTargetSeconds > 0 ? state.timer.breakTargetSeconds : state.settings.shortBreak * 60;
+      return Math.max(1, baseBreakSec - 1);
     }
 
     function getCurrentElapsedSeconds() {
@@ -1112,14 +1113,10 @@
       if (state.timer.accumulatedSeconds === 0) state.timer.sessionTargetDate = getStudyDate();
       state.timer.isRunning = true;
       state.timer.startTimestamp = Date.now();
-      
-      // [강제 딜레이 제로화] 시작 버튼을 누르자마자 1초 경과된 화면(예: 24:59)을 즉시 렌더링하고 워커 구동
-      const targetSec = getTargetSeconds();
-      document.getElementById('timeDisplay').textContent = formatSeconds(targetSec - 1);
-
       updateToggleUI(true);
       saveState();
       if (bgWorker) bgWorker.postMessage('start');
+      tick();
     }
 
     function pauseTimer() {
@@ -1155,7 +1152,9 @@
         badge.style.display = 'block';
         if (state.timer.mode === 'focus') {
           root.style.setProperty('--current-bg', 'var(--bg-break)');
-          badge.textContent = `🎯 뽀모도로 달성! (${formatSeconds(elapsed)} 집중 중 · Space: 넘기기)`;
+          const focusTargetSec = state.settings.focusTime * 60;
+          const currentPomoIndex = Math.floor(elapsed / focusTargetSec);
+          badge.textContent = `🎯 뽀모도로 달성! (🍅 ${currentPomoIndex}개째 달성 중 · Space: 넘기기)`;
         } else {
           root.style.setProperty('--current-bg', 'var(--bg-break-over)');
           badge.textContent = `☕ 휴식 시간 초과! (Space: 공부 시작)`;
