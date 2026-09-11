@@ -714,11 +714,6 @@
       font-weight: 700;
     }
 
-    .heat-1 { background-color: #f0fdf4; }
-    .heat-2 { background-color: #dcfce7; }
-    .heat-3 { background-color: #bbf7d0; }
-    .heat-4 { background-color: #86efac; }
-
     .setting-row {
       display: flex;
       justify-content: space-between;
@@ -815,7 +810,6 @@
       transform: translateY(-1px);
     }
 
-    /* 토스트 팝업 메시지 스타일 (이번만입니다... +1 🍅) */
     .toast-popup {
       position: fixed;
       bottom: 40px;
@@ -913,7 +907,6 @@
     </div>
   </main>
 
-  <!-- 조기 종료 커스텀 모달 -->
   <div class="modal-overlay" id="warningModal">
     <div class="warning-modal-box">
       <div class="warning-modal-title">⚠️ 조기 종료 경고</div>
@@ -930,10 +923,8 @@
     </div>
   </div>
 
-  <!-- 토스트 팝업 -->
   <div class="toast-popup" id="toastPopup">이번만입니다... +1 🍅</div>
 
-  <!-- 월간 달력 모달 -->
   <div class="modal-overlay" id="calendarModal">
     <div class="modal">
       <div class="modal-header">
@@ -963,7 +954,6 @@
     </div>
   </div>
 
-  <!-- 설정 및 백업 모달 -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
       <div class="modal-header">
@@ -990,7 +980,7 @@
           <button class="btn-backup-action" onclick="document.getElementById('importFileInput').click()">기록 복원</button>
           <input type="file" id="importFileInput" style="display:none;" accept=".json" onchange="importDataJson(event)">
         </div>
-        <button class="btn-backup-full" onclick="resetAllData()">데이터 초기화</button>
+        <button class="btn-backup-full" onclick="resetAllData()">초기화</button>
       </div>
     </div>
   </div>
@@ -1122,10 +1112,14 @@
       if (state.timer.accumulatedSeconds === 0) state.timer.sessionTargetDate = getStudyDate();
       state.timer.isRunning = true;
       state.timer.startTimestamp = Date.now();
+      
+      // [강제 딜레이 제로화] 시작 버튼을 누르자마자 1초 경과된 화면(예: 24:59)을 즉시 렌더링하고 워커 구동
+      const targetSec = getTargetSeconds();
+      document.getElementById('timeDisplay').textContent = formatSeconds(targetSec - 1);
+
       updateToggleUI(true);
       saveState();
       if (bgWorker) bgWorker.postMessage('start');
-      tick();
     }
 
     function pauseTimer() {
@@ -1222,7 +1216,6 @@
       const elapsed = getCurrentElapsedSeconds();
       const focusTargetSec = state.settings.focusTime * 60;
 
-      // 목표 시간 미만일 때는 언제든 조기 종료 경고창 오픈
       if (state.timer.mode === 'focus' && elapsed < focusTargetSec) {
         const remainingToTarget = focusTargetSec - elapsed;
         const rm = Math.floor(remainingToTarget / 60);
@@ -1243,11 +1236,10 @@
     function confirmEarlyQuit() {
       const elapsed = getCurrentElapsedSeconds();
       const focusTargetSec = state.settings.focusTime * 60;
-      const warningThreshold = Math.max(0, focusTargetSec - 180); // 3분 전 (22분)
+      const warningThreshold = Math.max(0, focusTargetSec - 180);
 
       closeWarningModal();
 
-      // 22분~24분 사이(유예 구간)에 경고창에서 '그래도 종료'를 누른 경우에만 인정 + 토스트 팝업
       if (elapsed >= warningThreshold && elapsed < focusTargetSec) {
         isGraceQuit = true;
         const toast = document.getElementById('toastPopup');
@@ -1366,7 +1358,6 @@
       const activeDate = getActiveSessionDate();
       document.getElementById('studyDateLabel').textContent = activeDate;
       const pomos = state.records[activeDate]?.pomodoros || 0;
-      // 핵심 수정: 상단 배지 번호는 오직 '완료한 뽀모 개수 + 1'로만 깔끔하게 동기화
       const currentNumber = pomos + 1;
       document.getElementById('sessionCounterBadge').textContent = `🍅 #${currentNumber}`;
     }
@@ -1512,18 +1503,19 @@
     }
 
     function resetAllData() {
-      if (confirm('정말로 모든 공부 기록과 데이터를 초기화하시겠습니까?')) {
+      if (confirm('정말로 모든 기록과 설정을 초기화하시겠습니까?')) {
         localStorage.removeItem(STORAGE_KEY);
-        state.records = {};
-        state.tasks = [];
-        state.activeTaskId = null;
-        state.timer.accumulatedSeconds = 0;
-        state.timer.isRunning = false;
-        state.timer.startTimestamp = null;
+        state = {
+          settings: { focusTime: 25, shortBreak: 5, longBreak: 15 },
+          timer: { mode: 'focus', isRunning: false, startTimestamp: null, accumulatedSeconds: 0, alertFired: false, sessionTargetDate: getStudyDate(), breakTargetSeconds: 0 },
+          tasks: [],
+          activeTaskId: null,
+          records: {}
+        };
         closeSettingsModal();
         renderAll();
         tick();
-        alert('모든 데이터가 초기화되었습니다.');
+        alert('모든 데이터와 설정이 초기화되었습니다.');
       }
     }
 
