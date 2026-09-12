@@ -1532,8 +1532,8 @@ function renderChart() {
         days.push(dateStr);
       }
 
-      // 7일간의 기록 중 실제 최고값을 정확한 분모(maxSec)로 설정 (최소 1800초 보장)
-      let maxSec = 1800;
+      // 기본 기준을 8시간(28800초)으로 고정하여 시간대별 상대적 높이 차이가 확연히 보이도록 설정
+      let maxSec = 8 * 3600;
       days.forEach(dateStr => {
         const sec = getLiveStudySeconds(dateStr);
         if (sec > maxSec) maxSec = sec;
@@ -1548,7 +1548,6 @@ function renderChart() {
         const fill = document.createElement('div');
         fill.className = 'bar-fill';
         
-        // 소수점 단까지 비율을 살려 최고값 대비 실제 높이 차이가 시각적으로 반영되도록 수정
         const rawPercent = (liveSec / maxSec) * 100;
         const percent = liveSec === 0 ? 0 : Math.min(100, Math.max(5, rawPercent));
         fill.style.height = `${percent.toFixed(1)}%`;
