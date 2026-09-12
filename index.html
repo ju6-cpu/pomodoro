@@ -1523,23 +1523,23 @@
       container.innerHTML = '';
       
       const days = [];
-      const activeDate = getActiveSessionDate();
-      const [y, m, d] = activeDate.split('-').map(Number);
-      const baseTs = new Date(y, m - 1, d).getTime();
+      const todayStr = getStudyDate();
+      const [ty, tm, td] = todayStr.split('-').map(Number);
 
       for (let i = 6; i >= 0; i--) {
-        const targetTs = baseTs - (i * 24 * 3600 * 1000);
-        days.push(getStudyDate(targetTs));
+        const dt = new Date(ty, tm - 1, td - i);
+        const dateStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        days.push(dateStr);
       }
 
-      // 1단계: 7일 중 가장 많이 공부한 날의 시간을 찾음 (0초일 경우 분모가 0이 되는 것을 방지하기 위해 최소 1800초 유지)
       let maxSec = 1800;
       days.forEach(dateStr => {
         const sec = getLiveStudySeconds(dateStr);
         if (sec > maxSec) maxSec = sec;
       });
 
-      // 2단계: 최고 공부량을 100% 기준으로 삼아 각 날짜의 상대적 높이 계산
+      const activeDate = getActiveSessionDate();
+
       days.forEach(dateStr => {
         const liveSec = getLiveStudySeconds(dateStr);
         const col = document.createElement('div');
