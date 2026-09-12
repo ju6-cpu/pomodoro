@@ -1550,7 +1550,7 @@ function renderChart() {
         
         // 소수점 단까지 비율을 살려 최고값 대비 실제 높이 차이가 시각적으로 반영되도록 수정
         const rawPercent = (liveSec / maxSec) * 100;
-        const percent = Math.min(100, Math.max(5, rawPercent));
+        const percent = liveSec === 0 ? 0 : Math.min(100, Math.max(5, rawPercent));
         fill.style.height = `${percent.toFixed(1)}%`;
         
         if (dateStr === activeDate) {
