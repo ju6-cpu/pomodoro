@@ -322,9 +322,16 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     }
 
+    /* 집중 모드일 때 선택된 과목 강조 색상 */
     .task-item.active {
       background-color: #fee2e2;
       border-color: #ef4444;
+    }
+
+    /* 휴식 모드일 때 선택된 과목 강조 색상 (집중 모드 빨간색 계열과 분리) */
+    body.is-break .task-item.active {
+      background-color: #e2e8f0;
+      border-color: #94a3b8;
     }
 
     .task-item.done {
@@ -1097,7 +1104,6 @@
       state.timer.startTimestamp = null;
       state.timer.alertFired = false;
 
-      // 앱 실행 시 날짜 변경 감지 -> 오늘 날짜 세션 및 할 일 체크 초기화
       const today = getStudyDate();
       if (!state.timer.sessionTargetDate || state.timer.sessionTargetDate !== today) {
         state.timer.sessionTargetDate = today;
@@ -1113,6 +1119,7 @@
       }
 
       updateToggleUI(false);
+      updateBodyBreakClass();
     }
 
     function saveState() {
@@ -1152,11 +1159,20 @@
       }
     }
 
+    function updateBodyBreakClass() {
+      if (state.timer.mode !== 'focus') {
+        document.body.classList.add('is-break');
+      } else {
+        document.body.classList.remove('is-break');
+      }
+    }
+
     function updateToggleUI(isRunning) {
       const btn = document.getElementById('btnToggle');
       if (isRunning) btn.classList.add('paused');
       else btn.classList.remove('paused');
       updateNextButtonVisibility();
+      updateBodyBreakClass();
     }
 
     function startTimer() {
@@ -1183,7 +1199,6 @@
     let lastRenderSec = -1;
 
     function tick() {
-      // 틱이 돌 때 자정이 넘어 날짜가 바뀐 경우 실시간 감지 및 리셋
       const today = getStudyDate();
       if (state.timer.sessionTargetDate && state.timer.sessionTargetDate !== today) {
         if (state.timer.isRunning) pauseTimer();
@@ -1200,6 +1215,8 @@
         saveState();
         renderAll();
       }
+
+      updateBodyBreakClass();
 
       const elapsed = getCurrentElapsedSeconds();
       const targetSec = getTargetSeconds();
@@ -1396,6 +1413,7 @@
       }
       tick();
       updateBadgesAndLabels();
+      updateBodyBreakClass();
       saveState();
     }
 
@@ -1467,8 +1485,15 @@
         `;
         container.appendChild(item);
       });
-      const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
-      document.getElementById('activeTaskBanner').textContent = activeTask ? `[${activeTask.title}]하는 중` : '';
+
+      // [핵심 수정] 휴식 모드일 때는 과목과 관계없이 무조건 '휴식 중'으로 띄우고, 집중 모드일 때만 선택된 과목 표시
+      const banner = document.getElementById('activeTaskBanner');
+      if (state.timer.mode !== 'focus') {
+        banner.textContent = '휴식 중';
+      } else {
+        const activeTask = state.tasks.find(t => t.id === state.activeTaskId);
+        banner.textContent = activeTask ? `[${activeTask.title}]하는 중` : '';
+      }
     }
 
     function calculateStreak() {
