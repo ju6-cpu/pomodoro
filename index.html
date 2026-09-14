@@ -322,13 +322,11 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     }
 
-    /* 집중 모드일 때 선택된 과목 강조 색상 */
     .task-item.active {
       background-color: #fee2e2;
       border-color: #ef4444;
     }
 
-    /* 휴식 모드일 때 선택된 과목 강조 색상 (집중 모드 빨간색 계열과 분리) */
     body.is-break .task-item.active {
       background-color: #e2e8f0;
       border-color: #94a3b8;
@@ -1236,7 +1234,8 @@
         displayStr = `+${formatSeconds(elapsed - targetSec)}`;
         badge.style.display = 'block';
         if (state.timer.mode === 'focus') {
-          root.style.setProperty('--current-bg', 'var(--bg-break)');
+          // [핵심 수정] 집중 모드 초과(오버타임) 시 배경색이 휴식 모드로 바뀌지 않고 집중 모드 색상(--bg-focus)을 그대로 유지
+          root.style.setProperty('--current-bg', 'var(--bg-focus)');
           const focusTargetSec = state.settings.focusTime * 60;
           const currentPomoIndex = Math.floor(elapsed / focusTargetSec);
           badge.textContent = `🎯 뽀모도로 달성! (🍅 ${currentPomoIndex}개 획득! · Space: 넘기기)`;
@@ -1486,7 +1485,6 @@
         container.appendChild(item);
       });
 
-      // [핵심 수정] 휴식 모드일 때는 과목과 관계없이 무조건 '휴식 중'으로 띄우고, 집중 모드일 때만 선택된 과목 표시
       const banner = document.getElementById('activeTaskBanner');
       if (state.timer.mode !== 'focus') {
         banner.textContent = '휴식 중';
@@ -1517,7 +1515,7 @@
       renderChart();
     }
 
-function renderChart() {
+    function renderChart() {
       const container = document.getElementById('chartBarsContainer');
       const tooltip = document.getElementById('chartTooltip');
       container.innerHTML = '';
@@ -1532,7 +1530,6 @@ function renderChart() {
         days.push(dateStr);
       }
 
-      // 기본 기준을 8시간(28800초)으로 고정하여 시간대별 상대적 높이 차이가 확연히 보이도록 설정
       let maxSec = 8 * 3600;
       days.forEach(dateStr => {
         const sec = getLiveStudySeconds(dateStr);
@@ -1574,6 +1571,7 @@ function renderChart() {
         container.appendChild(col);
       });
     }
+
     function openCalendarModal() { document.getElementById('calendarModal').classList.add('open'); renderCalendar(); }
     function closeCalendarModal() { document.getElementById('calendarModal').classList.remove('open'); }
     function shiftCalendarMonth(o) { calViewMonth += o; renderCalendar(); }
